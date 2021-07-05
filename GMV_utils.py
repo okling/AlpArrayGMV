@@ -802,6 +802,7 @@ def select_FK(event_dic, data_dic, start, end, model, freq, thechosenone, plot_C
                 lon_rec=lon_rec,
                 lats_rec=lats_rec,
                 lons_rec=lons_rec,
+                center_dist=thechosenone["sta_dist"],
                 st_fk1=st_fk1,
                 st_fk2=st_fk2,
                 starttime_fk=starttime_fk,
@@ -926,7 +927,7 @@ def plot_dispersion_curve(data_dic, event_dic, station, chan, start_dc, end_dc, 
     if save:
         plt.savefig(save + event_dic["event_name"] + "_" + station + "_DispersionCurve.png", dpi=120)
 
-def phase_marker(arr, ax, channel, start, end, move=False, plot_local=False, ignore=['PPP','SKKKS','SKSP','PPPS','SSP','PKiKP']):
+def phase_marker(arr, ax, channel, start, end, move=False, plot_local=False, move_label=["Sg","PcP","PKP","PKiKP","SKS"], ignore=['PPP','SKKKS','SKSP','PPPS','SSP','PKiKP']):
     """
     Plot phase marker of the selected station on seismograms
     
@@ -978,7 +979,7 @@ def phase_marker(arr, ax, channel, start, end, move=False, plot_local=False, ign
             x_adjust = 3
         else:
             x_adjust = 12
-        if phase_label in repeat or phase_label in ["Sg","PcP","PKP","PKiKP","SKS"]:
+        if phase_label in repeat or phase_label in move_label:
             ax.text(x=phase_time+x_adjust, y=-0.9*n, s=phase_label, color="b", fontsize=8, bbox=props) # plot label on the bottom
         else:
             ax.text(x=phase_time+x_adjust, y= 0.75*n, s=phase_label, color="b", fontsize=8, bbox=props)
@@ -1877,7 +1878,7 @@ def GMV_FK_ray(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict
             print("Plotting %06.1f s..."%(start+it*timestep))
         # Setting up the plot
         fig = plt.figure(figsize=(16, 9)) 
-        gs=GridSpec(7,36, height_ratios=[3.0,0.05,0.5,0.08,0.6,0.6,0.6])
+        gs=GridSpec(7,37, height_ratios=[2.9,0.15,0.5,0.07,0.6,0.6,0.6])
         gs.update(hspace=0.1)
         ax1 = plt.subplot(gs[:3,:23])
         axs = plt.subplot(gs[3,:])
@@ -1887,7 +1888,7 @@ def GMV_FK_ray(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict
         ax4 = plt.subplot(gs[6,1:22])
         # FK-analysis
         ax5 = plt.subplot(gs[0,25:-2], polar=True)
-        ax6 = plt.subplot(gs[0,-1])
+        ax6 = plt.subplot(gs[0,-1]) # FK colorbar
         # Ray path plot
         ax7 = plt.subplot(gs[2:,23:], polar=True)
         
@@ -1940,7 +1941,7 @@ def GMV_FK_ray(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict
         imagebox = OffsetImage(arr_img, zoom=0.45)
         imagebox.image.axes = ax1
         ab = AnnotationBbox(imagebox, (1, 1),
-                            xybox=(40., 287.),
+                            xybox=(40., 288.),
                             xycoords='data',
                             boxcoords="offset points",
                             pad=0.5, frameon=False)
@@ -1991,7 +1992,7 @@ def GMV_FK_ray(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict
         
         ax4.grid(b=True, which='major')
         ax4.tick_params(axis="x",labelsize=12)
-        ax4.set_xlabel('Time after origin [s]', fontsize=14)
+        ax4.set_xlabel('Time after origin [s] \n'+str(int(t_interval+start))+'s', fontsize=14)
         ax4.set_xticks(seismo_labels)
         ax4.set_xticklabels(seismo_labels) 
         ax4.set_xlim([start,end_fk])
@@ -2118,8 +2119,9 @@ def GMV_FK_ray(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict
             
         ax5.set_xticks(np.linspace(0, 2 * np.pi, 4, endpoint=False))
         ax5.set_xticklabels(['N', 'E', 'S', 'W'])
-        ax5.set_title('t = '+str(int(t_interval+start))+"s\n" +str(len(st_fk2))+" STA, baz = %0.1f" % thechosenone["sta_bazi"], y=1.1,fontsize=11)
-                    
+        # ax5.set_title('t = '+str(int(t_interval+start))+"s\n" +str(len(st_fk2))+" STA, baz = %0.1f" % thechosenone["sta_bazi"], y=1.1,fontsize=11)
+        ax5.set_title(thechosenone["sta_name"]+", "+str(len(st_fk2))+" STA \n"+" dist = %0.1f" % thechosenone["sta_dist"]+"\N{DEGREE SIGN}, baz = %0.1f" % thechosenone["sta_bazi"]+"\N{DEGREE SIGN}", y=1.1,fontsize=11)
+        
         # Set slowness limits
         if slow_unit == "skm":
             ax5.set_ylim(0, sx) # s/km
@@ -2179,7 +2181,367 @@ def GMV_FK_ray(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict
         print("Plots are saved. End of plotting.")
     else:
         print("Plots are not saved. End of plotting.")
+
+
+# ====================
+# 4 FK analysis plots
+        
+def GMV_FK4(GMV, event_dic, stream_info, thechosenones, subarray_dicts, FK_dict,
+            start_movie, end_movie, interval,
+            vmin, vmax, arr_img, 
+            movie_directory, slow_unit="sdeg",
+            plot_save=False, plot_3c=True, plot_rotate=True):
     
+    """
+    Plot single timestep of GMV, reference seismograms, ray path plot, and FK diagram
+    
+    :param GMV: processed data dictionary
+    :param event_dic: event dictionary
+    :param stream_info: stream info dictionary
+    :param thechosenone: the reference station info dictionary
+    :param subarray_dict: subarray info dictionary
+    :param FK_dict: FK analysis streams and info dictionary
+    :param start_movie: starting time of the movie (in s)
+    :param end_movie: ending time of the movie (in s)
+    :param interval: movie interval (index)
+    :param vmin: colorbar min
+    :param vmax: colorbar max
+    :param arr_img: AlpArray logo
+    :param movie_directory: movie directory path
+    :param slow_unit: slowness unit "sdeg" or "skm", default: "sdeg"
+    :param plot_save: If True, save figure
+    :param plot_3c: If True, plot in 3 component on GMV
+    :param plot_rotate: If True, seismograms plotted in RT instead of NE
+    """
+    
+    # Variables
+    start    = stream_info["start"]
+    end      = stream_info["end"]
+    timestep = stream_info["timestep"]
+    time_st  = stream_info["time_st"]
+    lat_sta_new  = GMV["lat_sta"]
+    lon_sta_new  = GMV["lon_sta"]
+    name_sta_new = GMV["name_sta"]
+
+    sx, sy, sx_m, sl_s, freq, win_frac, interval_win, win_len, interval_win2, win_len2, minval, maxval = FK_dict
+    f11, f22, f111, f222 = freq
+    lat_ant, lon_ant     = antipode(event_dic["lat"], event_dic["lon"])
+    
+    # Start and end of movies in seconds
+    print("Movie will start at "+str(start_movie)+"s and end at "+str(end_movie)+"s with interval "+str(interval*timestep)+"s.")
+    
+    if plot_3c:
+        print("Ready to plot 3C figures!")
+    else:
+        print("Ready to plot!")  
+        
+    if plot_save:
+        print("Plots will be saved in " + movie_directory)
+    else:
+        print("Plots will not be saved.")
+        
+    print("Plotting GMV and 4 FK analysis plots...")
+    
+    start_movie_index = int((start_movie-start)/timestep)
+    end_movie_index   = int((end_movie-start)/timestep)
+
+    seismo_labels = np.arange(1000, int(end)+1,1000)
+    
+    for it in range(start_movie_index, end_movie_index+1, interval): # from start time to end time 
+        if it == start_movie_index or (start+it*timestep) % 500 == 0:
+            print("Plotting %06.1f s..."%(start+it*timestep))
+        # Setting up the plot
+        fig = plt.figure(figsize=(16, 9)) 
+        gs=GridSpec(7,6, left=0.05, right=0.97, height_ratios=[1.5,0.8,0.06,0.3,0.3,0.3,0.3], width_ratios=[4.,0.05,1.5,0.08,1.5,0.09])
+        gs.update(hspace=0.1)
+        ax1 = plt.subplot(gs[:2,0])
+        axs1 = plt.subplot(gs[2,0])
+        axs1.set_visible(False)
+        ax2 = plt.subplot(gs[3,0])
+        ax3 = plt.subplot(gs[4,0])
+        ax4 = plt.subplot(gs[5,0])
+        ax5 = plt.subplot(gs[6,0])
+        # FK-analysis
+        ax6 = plt.subplot(gs[0, 2], polar=True)
+        ax7 = plt.subplot(gs[0, 4], polar=True)
+        ax8 = plt.subplot(gs[2:,2], polar=True)
+        ax9 = plt.subplot(gs[2:,4], polar=True)
+        # Colorbar
+        ax_c = plt.subplot(gs[2: ,-1])
+        
+        # Array processing interval
+        t_interval = it*timestep
+        end_fk     = end # 3600 # ending of seismogram
+        
+        # Setting up the map
+        m = Basemap(projection='mill',llcrnrlat=AA_lat1,urcrnrlat=AA_lat2,llcrnrlon=AA_lon1,urcrnrlon=AA_lon2,resolution="i",ax=ax1)
+        m.drawcoastlines()
+        m.drawmapboundary(fill_color='lightblue')
+        m.fillcontinents(color='lightyellow',lake_color='lightblue')
+        m.drawcountries(color="lightgrey")
+        
+        # Draw parallels and meridians.
+        parallels = np.arange(AA_lat1,AA_lat2+dlat,dlat)
+        # Label the meridians and parallels
+        m.drawparallels(parallels,labels=[True,False,False,True], linewidth=1.0, fontsize=12)
+        # Draw Meridians and Labels
+        meridians = np.arange(AA_lon1,AA_lon2+dlon,dlon)
+        m.drawmeridians(meridians,labels=[True,False,False,True], linewidth=1.0, fontsize=12)
+        
+        # Draw subarray box
+        array_colors = ["orange","k", "m", "lime"]
+        for subarray_dict, clr in zip(subarray_dicts, array_colors):
+            draw_screen_poly(subarray_dict["lats_rec"], subarray_dict["lons_rec"], m, ax1, c=clr)
+        
+        # Plot the stations
+        # Plot 3C motion
+        if plot_3c:
+            x_sta, y_sta = m(lon_sta_new+GMV["GMV_E"][:,it], lat_sta_new+GMV["GMV_N"][:,it])
+            alpmap = m.scatter(x_sta, y_sta, c=GMV["GMV_Z"][:,it], edgecolors='k', marker='o', s=45, cmap='bwr', vmin=vmin, vmax=vmax, zorder=3, ax=ax1)
+        # Plot vertical motion only
+        else:
+            x_sta, y_sta = m(lon_sta_new, lat_sta_new)
+            alpmap = m.scatter(x_sta, y_sta, c=GMV["GMV_Z"][:,it], edgecolors='k', marker='o', s=45, cmap='bwr', vmin=vmin, vmax=vmax, zorder=3, ax=ax1)
+        # Plot reference stations of subarrays
+        for thechosenone, clr in zip(thechosenones, array_colors):
+            alpmap_n = m.plot(x_sta[thechosenone["sta_index"]], y_sta[thechosenone["sta_index"]]+1, fillstyle='none', markeredgecolor=clr, markeredgewidth=3, marker="o", markersize=8, zorder=4, ax=ax1)
+        mcolorbar(alpmap, vmin, vmax) # Plot map colorbar
+        
+        # Plot great circle path
+        m.drawgreatcircle(thechosenones[1]["sta_lon"],thechosenones[1]["sta_lat"],event_dic["lon"],event_dic["lat"],linewidth=2,color='g', zorder=5)
+        m.drawgreatcircle(thechosenones[1]["sta_lon"],thechosenones[1]["sta_lat"],lon_ant,lat_ant,linewidth=2,color='orange', zorder=5)
+                    
+        ax1.set_title("%04d"% event_dic["year"]+'/'+"%02d"% event_dic["month"] +'/'+"%02d"% event_dic["day"]+' '+
+                      "%02d"% event_dic["hour"] +':'+"%02d"% event_dic["minute"] +':'+"%02d"% event_dic["second"]+
+                      ' '+event_dic["mag_type"].capitalize()+' '+"%.1f"% event_dic["mag"]+' '+string.capwords(event_dic["region"])+'\n'+
+                      '  Lat '+"%.2f"% event_dic["lat"] +' Lon '+"%.2f" % event_dic["lon"]+', Depth '+ "%.1f"% event_dic["depth"]+'km'+
+                      ', Distance '+ "%.1f"% np.median(GMV["dist_sta"])+'\N{DEGREE SIGN}, '+str(len(name_sta_new))+' STA', fontsize=14)
+       
+        # Add AA logo on plot
+        imagebox = OffsetImage(arr_img, zoom=0.45)
+        imagebox.image.axes = ax1
+        ab = AnnotationBbox(imagebox, (1, 1),
+                            xybox=(40., 277.),
+                            xycoords='data',
+                            boxcoords="offset points",
+                            pad=0.5, frameon=False)
+        
+        ax1.add_artist(ab)
+        
+        # Plot seismograms
+        # HHZ
+        for ax, thechosenone in zip((ax2,ax3,ax4,ax5), thechosenones):
+            ax.plot(time_st+start, GMV["GMV_Z"][thechosenone["sta_index"]], color="k", linewidth=1.5, label=thechosenone["sta_name"]+".Z")
+            ax.axvline(x=start+it*timestep, color="r", linewidth=1.2) # Time marker
+            # Plot phase marker for channel Z
+            phase_marker(thechosenone["arr"], ax , "Z", start, end_fk)
+            # Box showing the window for array processing
+            ax.add_patch(plt.Rectangle((t_interval+start-(interval_win2/2), -1.1), interval_win2, 2.2, fc="c", alpha =0.6))
+            
+            ax.grid(b=True, which='major')
+            ax.set_xticks(seismo_labels)
+            ax.set_xlim([start,end_fk])
+            ax.set_ylim([-1.1,1.1]) 
+            ax.legend(loc='lower right', fontsize=8, bbox_to_anchor=(0.99, -0.05))
+        
+        ax2.set_xticklabels([])
+        ax3.set_xticklabels([])
+        ax4.set_xticklabels([])
+
+        ax4.set_ylabel('             Normalized Displacement', fontsize=11)
+        
+        ax5.tick_params(axis="x",labelsize=12)
+        ax5.set_xlabel('Time after origin [s] \n'+str(int(t_interval+start))+'s', fontsize=14)
+        ax5.set_xticklabels(seismo_labels) 
+        
+        ## Array Processing
+
+        # Plotting
+        for ax, thechosenone, subarray_dict in zip((ax7,ax9,ax6,ax8), thechosenones, subarray_dicts):
+            st_fk1   = subarray_dict["st_fk1"]
+            st_fk2   = subarray_dict["st_fk2"]
+            starttime_fk = subarray_dict["starttime_fk"]
+
+            ax.set_theta_direction(-1)
+            ax.set_theta_zero_location("N")
+            
+            # First resolution
+            kwargs1 = dict(
+                # slowness grid: X min, X max, Y min, Y max, Slow Step
+                sll_x=-sx_m, slm_x=sx_m, sll_y=-sx_m, slm_y=sx_m, sl_s=sl_s,
+                # sliding window properties
+                win_len=win_len, win_frac=win_frac,
+                # frequency properties
+                frqlow=f11, frqhigh=f22, prewhiten=0,
+                # restrict output
+                semb_thres=-1e9, vel_thres=-1e9,
+                stime=starttime_fk+t_interval-(interval_win/2),
+                etime=starttime_fk+t_interval+(interval_win/2)
+            )
+            
+            out1 = array_processing(st_fk1.copy(), **kwargs1) # output of array_processing
+            
+            # Make output human readable, adjust backazimuth to values between 0 and 360
+            t1, rel_power1, abs_power1, baz1, slow1 = out1.T
+            baz1[baz1 < 0.0] += 360
+            
+            N1 = 36
+            N2 = int(sx_m/sl_s)
+            abins1 = np.arange(N1 + 1) * 360. / N1   # angle resolution
+            if slow_unit == "skm":
+                sbins1 = np.linspace(0, sx_m, N2 + 1)      # slowness resolution s/km
+            else:
+                sbins1 = np.linspace(0, sx_m*100, N2 + 1)  # slowness resolution s/deg
+            
+            # Sum rel power in bins given by abins and sbins
+            # s/km
+            if slow_unit == "skm":
+                hist1, baz_edges1, sl_edges1 = \
+                    np.histogram2d(baz1, slow1, bins=[abins1, sbins1], weights=rel_power1)
+            # s/deg
+            else: 
+                hist1, baz_edges1, sl_edges1 = \
+                    np.histogram2d(baz1, slow1*KM_PER_DEG, bins=[abins1, sbins1], weights=rel_power1)
+                
+            # Transform to radian
+            baz_edges1 = np.radians(baz_edges1)
+            dh1 = abs(sl_edges1[1] - sl_edges1[0])
+            dw1 = abs(baz_edges1[1] - baz_edges1[0])
+            
+            # circle through backazimuth
+            for i, row in enumerate(hist1):
+                row_norm = row/minval #row / hist.max() #(np.log10(row / hist.max())+3)/3.
+                row_norm_log = np.log10(row_norm)
+                row_norm_log /= np.log10(maxval) - np.log10(minval)
+                # s/km or s/deg
+                bars1 = ax.bar(x=(i * dw1) * np.ones(N2),                
+                               height=dh1 * np.ones(N2),
+                               width=dw1, bottom=dh1 * np.arange(N2),
+                               color=cmap_fk(row_norm_log), edgecolor="lightgrey", linewidth=0.1, align="edge")
+            
+            # Second resolution
+            kwargs2 = dict(
+                # slowness grid: X min, X max, Y min, Y max, Slow Step
+                sll_x=-sx, slm_x=sx, sll_y=-sy, slm_y=sy, sl_s=sl_s,
+                # sliding window properties
+                win_len=win_len2, win_frac=win_frac,
+                # frequency properties
+                frqlow=f111, frqhigh=f222, prewhiten=0,
+                # restrict output
+                semb_thres=-1e9, vel_thres=-1e9,
+                stime=starttime_fk+t_interval-(interval_win2/2),
+                etime=starttime_fk+t_interval+(interval_win2/2)
+            )
+                     
+            out2 = array_processing(st_fk2.copy(), **kwargs2) # output of array_processing
+            
+            # Make output human readable, adjust backazimuth to values between 0 and 360
+            t2, rel_power2, abs_power2, baz2, slow2 = out2.T
+            baz2[baz2 < 0.0] += 360
+            
+            N1_m = 72
+            N2_m = int((sx-sx_m)/sl_s)
+            abins2 = np.arange(N1_m + 1) * 360. / N1_m   # angle resolution
+            # sbins2 = np.linspace(sx_m, sx, N2_m + 1)   # slowness resolution s/km
+            sbins2 = np.linspace(sx_m*100, sx*100, N2_m + 1)   # slowness resolution s/deg
+            
+            # Sum rel power in bins given by abins and sbins
+            # s/km
+            if slow_unit == "skm":
+                hist2, baz_edges2, sl_edges2 = \
+                    np.histogram2d(baz2, slow2, bins=[abins2, sbins2], weights=rel_power2)
+            # s/deg
+            else:
+                hist2, baz_edges2, sl_edges2 = \
+                    np.histogram2d(baz2, slow2*KM_PER_DEG, bins=[abins2, sbins2], weights=rel_power2)
+            
+            # Transform to radian
+            baz_edges2 = np.radians(baz_edges2)
+            dh2 = abs(sl_edges2[1] - sl_edges2[0])
+            dw2 = abs(baz_edges2[1] - baz_edges2[0])
+                       
+            for i, row in enumerate(hist2):
+                row_norm = row/minval #row / hist.max() #(np.log10(row / hist.max())+3)/3.
+                row_norm_log = np.log10(row_norm)
+                row_norm_log /= np.log10(maxval) - np.log10(minval)
+                # s/km
+                if slow_unit == "skm":
+                    bars2 = ax.bar(x=(i * dw2) * np.ones(N2_m),                
+                                    height=dh2 * np.ones(N2_m) + sx_m,
+                                    width=dw2, bottom=dh2 * np.arange(N2_m) + sx_m,
+                                    color=cmap_fk(row_norm_log), edgecolor="lightgrey", linewidth=0.1, align="edge")
+                # s/deg
+                else:
+                    bars2 = ax.bar(x=(i * dw2) * np.ones(N2_m),                
+                                   height=dh2 * np.ones(N2_m) + sx_m*100,
+                                   width=dw2, bottom=dh2 * np.arange(N2_m) + sx_m*100,
+                                   color=cmap_fk(row_norm_log), edgecolor="lightgrey", linewidth=0.1, align="edge")
+                
+            
+            # Set slowness limits
+            if slow_unit == "skm":
+                ax.set_ylim(0, sx) # s/km
+            else:
+                ax.set_ylim(0, sx*100) # s/deg
+            [i.set_color('grey') for i in ax.get_yticklabels()]
+            
+            # add a line to split two resolutions
+            rads = np.arange(0, (2*np.pi), 0.01)
+            if slow_unit == "skm":
+                ax.plot(rads,[sx_m]*len(rads), color="k",zorder=5, lw=0.9)      # s/km
+            else:
+                ax.plot(rads,[sx_m*100]*len(rads), color="k",zorder=5, lw=0.8)  # s/deg
+            
+            # Plot backzimuth on FK plot
+            # s/km
+            if slow_unit == "skm":
+                arrow_baz   = np.radians(thechosenone["sta_bazi"]) 
+                arrow_baz_r = np.radians(thechosenone["sta_bazi"]+180.) if thechosenone["sta_bazi"] < 180. else np.radians(thechosenone["sta_bazi"]-180)
+                ax.annotate('', xy=(arrow_baz, 0.5), xytext=(arrow_baz, 0.62),
+                                  arrowprops=dict(facecolor='green', edgecolor='none', width=2.5, headwidth=7), annotation_clip=False)
+                ax.annotate('', xy=(arrow_baz_r, 0.5), xytext=(arrow_baz_r, 0.62),
+                                  arrowprops=dict(facecolor='orange', edgecolor='none', width=2.5, headwidth=7), annotation_clip=False)
+            # s/deg
+            else:
+                arrow_baz   = np.radians(thechosenone["sta_bazi"]) 
+                arrow_baz_r = np.radians(thechosenone["sta_bazi"]+180.) if thechosenone["sta_bazi"] < 180. else np.radians(thechosenone["sta_bazi"]-180)
+                ax.annotate('', xy=(arrow_baz, 50), xytext=(arrow_baz, 62),
+                                  arrowprops=dict(facecolor='green', edgecolor='none', width=2.5, headwidth=7), annotation_clip=False)
+                ax.annotate('', xy=(arrow_baz_r, 50), xytext=(arrow_baz_r, 62),
+                                  arrowprops=dict(facecolor='orange', edgecolor='none', width=2.5, headwidth=7), annotation_clip=False)
+
+        
+            ax.set_xticks(np.linspace(0, 2 * np.pi, 4, endpoint=False))
+            ax.set_xticklabels(['N', 'E', 'S', 'W'])
+        
+            # Set title
+            ax.set_title(thechosenone["sta_name"]+", "+str(len(st_fk2))+" STA \n"+" dist = %0.1f" % thechosenone["sta_dist"]+"\N{DEGREE SIGN}, baz = %0.1f" % thechosenone["sta_bazi"]+"\N{DEGREE SIGN}", y=1.1,fontsize=11)
+        
+        # set colorbar
+        
+        cbar = ColorbarBase(ax_c, cmap=cmap_fk) 
+        cbar.set_ticks([])
+        cbar.set_label("Relative Power", rotation=270, labelpad=14, fontsize=11)
+        
+        plt.tight_layout(h_pad=1)
+        
+        if plot_save:
+            if plot_3c:
+                plt.savefig(movie_directory+ event_dic['event_name'] +"_3C_4FKanalysis_"+ "%06.1f"%(start+it*timestep)+"s.png", dpi=120)
+            else:
+                plt.savefig(movie_directory+ event_dic['event_name'] +"_4 FKanalysis_"+ "%06.1f"%(start+it*timestep)+"s.png", dpi=120)
+                
+            plt.clf()
+            plt.close()
+            
+        else:
+            plt.show()
+            
+    if plot_save:
+        print("Plots are saved. End of plotting.")
+    else:
+        print("Plots are not saved. End of plotting.")
+
 # ====================
 # Cross-section plot
     

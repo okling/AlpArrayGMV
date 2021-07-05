@@ -10,8 +10,9 @@ import time
 from os import path, listdir, makedirs
 import matplotlib.pyplot as plt
 from matplotlib.cbook import get_sample_data
-from GMV_utils import readevent, read_data_inventory, Normalize, station_phases
-from GMV_utils import GMV_plot, GMV_FK, GMV_FK_ray, GMV_Xsec
+from operator import itemgetter
+from GMV_utils import readevent, read_data_inventory, Normalize, station_phases, select_FK
+from GMV_utils import GMV_plot, GMV_FK, GMV_FK_ray, GMV_Xsec, GMV_FK4
 
 # ====================
 # %% Parameter Box
@@ -63,6 +64,8 @@ station = "CH.GRIMS."
 # station = "Z3.A061A."
 # station = "Z3.A025A.00"
 # station = "Z3.A033A.00"
+# stations = ["BW.BDGS.", "OE.FETA.", "CH.GRIMS.", "FR.OGVG.00"]
+stations = ["HU.CSKK.", "OE.FETA.", "CH.GRIMS.", "FR.OGVG.00"]
 
 # Select phases to plot on seismograms
 model     = "iasp91" # background model (e.g. iasp91/ak135)
@@ -78,8 +81,9 @@ plot_3c     = True  # Plot 3C motion
 plot_rotate = True  # Plot ZRT instead of ZNE in the simple map seismograms
 plot_Xsec   = False # Plot Xsec instead of seismograms (includes rotation)
 plot_FK     = False # Plot FK-analysis
-plot_FK_ray = True  # Plot FK-analysis + ray path
-plot_save   = True # Save plots in movie directory
+plot_FK_ray = False # Plot FK-analysis + ray path
+plot_FK4    = True # Plot 4 FK-analysis
+plot_save   = False # Save plots in movie directory
 
 # Parameters for GMV
 vmin = -0.1   # colorbar min, default: -0.1
@@ -175,19 +179,31 @@ if plot_Xsec:
     Xsec_dict = select_Xsec(GMV)
     # Select ceneter station of the cross-section
     thechosenone_Xsec = station_phases(GMV, Xsec_dict["center_station"], event_dic, model, phases)
+elif plot_FK4:
+    thechosenones = []
+    for sta in stations:
+        thechosensta = station_phases(GMV, sta, event_dic, model, phases)
+        thechosenones.append(thechosensta)
 else:
     # Select a reference station for plotting seismogram
     thechosenone = station_phases(GMV, station, event_dic, model, phases)
 
 # Only Vertical component for FK analysis
 if plot_FK or plot_FK_ray:
-    from GMV_utils import select_FK
     freq    = (f11, f22, f111, f222)
     FK_dict = (sx, sy, sx_m, sl_s, freq, win_frac, interval_win, win_len, interval_win2, win_len2, minval, maxval)
     subarray_dict = select_FK(event_dic, data_dic, start, end, model, freq, thechosenone, plot_CH_only=plot_CH_only)
     ## Plot array response function
     # from GMV_utils import plot_ARF
     # plot_ARF(subarray_dict, 5.)
+elif plot_FK4:
+    subarrays = []
+    freq    = (f11, f22, f111, f222)
+    FK_dict = (sx, sy, sx_m, sl_s, freq, win_frac, interval_win, win_len, interval_win2, win_len2, minval, maxval)
+    for thechosensta in thechosenones:
+        subarray = select_FK(event_dic, data_dic, start, end, model, freq, thechosensta)
+        subarrays.append(subarray)
+        subarrays.sort(key=itemgetter('center_dist'))
 
 # %% Prepare for plotting 
 
@@ -214,7 +230,7 @@ if plot_FK_ray:
            plot_save=plot_save, plot_3c=plot_3c, plot_rotate=plot_rotate)
 
 ## ====================
-## FK analysis plot
+## single FK analysis plot
 elif plot_FK:
         
     GMV_FK(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict,
@@ -222,6 +238,16 @@ elif plot_FK:
            vmin, vmax, arr_img, 
            movie_directory, slow_unit=slow_unit,
            plot_save=plot_save, plot_3c=plot_3c, plot_rotate=plot_rotate)
+    
+## ====================
+## single FK analysis plot
+elif plot_FK4:
+    
+    GMV_FK4(GMV, event_dic, stream_info, thechosenones, subarrays, FK_dict,
+            start_movie, end_movie, interval,
+            vmin, vmax, arr_img, 
+            movie_directory, slow_unit="sdeg",
+            plot_save=plot_save, plot_3c=plot_3c, plot_rotate=plot_rotate)
     
 ## ====================
 # # Cross-section plot
