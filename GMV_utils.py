@@ -925,7 +925,7 @@ def plot_dispersion_curve(data_dic, event_dic, station, chan, start_dc, end_dc, 
     plt.show()
     
     if save:
-        plt.savefig(save + event_dic["event_name"] + "_" + station + "_DispersionCurve.png", dpi=120)
+        plt.savefig(save + event_dic["event_name"] + "_" + station + "_DispersionCurve.pdf", dpi=150)
 
 def phase_marker(arr, ax, channel, start, end, move=False, plot_local=False, move_label=["Sg","PcP","PKP","PKiKP","SKS"], ignore=['PPP','SKKKS','SKSP','PPPS','SSP','PKiKP']):
     """
@@ -1249,7 +1249,8 @@ def mcolorbar(mappable, vmin, vmax, title=None):
 def GMV_plot(GMV, event_dic, stream_info, thechosenone, 
              start_movie, end_movie, interval,
              vmin, vmax, arr_img, 
-             movie_directory, plot_save=False,
+             movie_directory, timeframes = None,
+             plot_save=False, save_option="png", save_dpi=120,
              plot_local=False, plot_3c=True, plot_rotate=True):
     
     """
@@ -1281,9 +1282,22 @@ def GMV_plot(GMV, event_dic, stream_info, thechosenone,
     lon_sta_new  = GMV["lon_sta"]
     name_sta_new = GMV["name_sta"]
     
-    # Start and end of movies in seconds
-    print("Movie will start at "+str(start_movie)+"s and end at "+str(end_movie)+"s with interval "+str(interval*timestep)+"s.")
+    start_movie_index = int((start_movie-start)/timestep)
+    end_movie_index   = int((end_movie-start)/timestep)
+    if plot_local:
+        seismo_labels = np.arange(int(start),int(end)+1,100)
+    else:
+        seismo_labels = np.arange(1000, int(end)+1,1000)
     
+    if timeframes is not None:
+        print("The following time frames in seconds will be plotted:")
+        print(*timeframes)
+        timeframes = ((np.array(timeframes)-start)/timestep).astype(int)
+    else:
+        timeframes = range(start_movie_index, end_movie_index+1, interval)
+        # Start and end of movies in seconds
+        print("Movie will start at "+str(start_movie)+"s and end at "+str(end_movie)+"s with interval "+str(interval*timestep)+"s.")
+        
     if plot_3c:
         print("Ready to plot 3C figures!")
     else:
@@ -1293,16 +1307,9 @@ def GMV_plot(GMV, event_dic, stream_info, thechosenone,
         print("Plots will be saved in " + movie_directory)
     else:
         print("Plots will not be saved.")
-    
-    start_movie_index = int((start_movie-start)/timestep)
-    end_movie_index   = int((end_movie-start)/timestep)
-    if plot_local:
-        seismo_labels = np.arange(int(start),int(end)+1,100)
-    else:
-        seismo_labels = np.arange(1000, int(end)+1,1000)
-    
+        
     step = 0 # used only when plot_local is True
-    for it in range(start_movie_index, end_movie_index+1, interval): # from start time to end time 
+    for it in timeframes: # from start time to end time 
         if it == start_movie_index or (start+it*timestep) % 500 == 0:
             print("Plotting %06.1f s..."%(start+it*timestep))
         # Just the simple map and seismograms
@@ -1430,9 +1437,9 @@ def GMV_plot(GMV, event_dic, stream_info, thechosenone,
             else:
                 step = start+it*timestep 
             if plot_3c:
-                plt.savefig(movie_directory+ event_dic['event_name'] +"_3C_"+ "%06.1f"%(step)+"s.png", dpi=120)
+                plt.savefig(movie_directory+ event_dic['event_name'] +"_3C_"+ "%06.1f"%(step)+"s."+save_option, dpi=save_dpi)
             else:
-                plt.savefig(movie_directory+ event_dic['event_name'] +"_"+ "%06.1f"%(step)+"s.png", dpi=120)
+                plt.savefig(movie_directory+ event_dic['event_name'] +"_"+ "%06.1f"%(step)+"s."+save_option, dpi=save_dpi)
                 
             plt.clf()
             plt.close()
@@ -1450,8 +1457,9 @@ def GMV_plot(GMV, event_dic, stream_info, thechosenone,
 def GMV_FK(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict,
            start_movie, end_movie, interval,
            vmin, vmax, arr_img, 
-           movie_directory, slow_unit="sdeg",
-           plot_save=False, plot_3c=True, plot_rotate=True):
+           movie_directory, timeframes=None, slow_unit="sdeg",
+           plot_save=False, save_option="png", save_dpi=120,
+           plot_3c=True, plot_rotate=True):
     
     """
     Plot single timestep of GMV, reference seismograms, and FK diagram
@@ -1489,9 +1497,20 @@ def GMV_FK(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict,
     sx, sy, sx_m, sl_s, freq, win_frac, interval_win, win_len, interval_win2, win_len2, minval, maxval = FK_dict
     f11, f22, f111, f222 = freq
     
-    # Start and end of movies in seconds
-    print("Movie will start at "+str(start_movie)+"s and end at "+str(end_movie)+"s with interval "+str(interval*timestep)+"s.")
+    start_movie_index = int((start_movie-start)/timestep)
+    end_movie_index   = int((end_movie-start)/timestep)
+
+    seismo_labels = np.arange(1000, int(end)+1,1000)
     
+    if timeframes is not None:
+        print("The following time frames in seconds will be plotted:")
+        print(*timeframes)
+        timeframes = ((np.array(timeframes)-start)/timestep).astype(int)
+    else:
+        timeframes = range(start_movie_index, end_movie_index+1, interval)
+        # Start and end of movies in seconds
+        print("Movie will start at "+str(start_movie)+"s and end at "+str(end_movie)+"s with interval "+str(interval*timestep)+"s.")
+        
     if plot_3c:
         print("Ready to plot 3C figures!")
     else:
@@ -1503,13 +1522,8 @@ def GMV_FK(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict,
         print("Plots will not be saved.")
         
     print("Plotting seismograms and FK analysis...")
-    
-    start_movie_index = int((start_movie-start)/timestep)
-    end_movie_index   = int((end_movie-start)/timestep)
-
-    seismo_labels = np.arange(1000, int(end)+1,1000)
         
-    for it in range(start_movie_index, end_movie_index+1, interval): # from start time to end time 
+    for it in timeframes: # from start time to end time 
         if it == start_movie_index or (start+it*timestep) % 500 == 0:
             print("Plotting %06.1f s..."%(start+it*timestep))
         # Setting up the plot
@@ -1792,9 +1806,9 @@ def GMV_FK(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict,
         
         if plot_save:
             if plot_3c:
-                plt.savefig(movie_directory+ event_dic['event_name'] +"_3C_FKanalysis_"+ "%06.1f"%(start+it*timestep)+"s.png", dpi=120)
+                plt.savefig(movie_directory+ event_dic['event_name'] +"_3C_FKanalysis_"+ "%06.1f"%(start+it*timestep)+"s."+save_option, dpi=save_dpi)
             else:
-                plt.savefig(movie_directory+ event_dic['event_name'] +"_FKanalysis_"+ "%06.1f"%(start+it*timestep)+"s.png", dpi=120)
+                plt.savefig(movie_directory+ event_dic['event_name'] +"_FKanalysis_"+ "%06.1f"%(start+it*timestep)+"s."+save_option, dpi=save_dpi)
                 
             plt.clf()
             plt.close()
@@ -1811,10 +1825,11 @@ def GMV_FK(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict,
 # FK analysis + ray path plot
         
 def GMV_FK_ray(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict,
-               start_movie, end_movie, interval,
+               start_movie, end_movie, interval, 
                vmin, vmax, arr_img, 
-               movie_directory, slow_unit="sdeg",
-               plot_save=False, plot_3c=True, plot_rotate=True):
+               movie_directory, timeframes=None, slow_unit="sdeg",
+               plot_save=False, save_option="png", save_dpi=120,
+               plot_3c=True, plot_rotate=True):
     
     """
     Plot single timestep of GMV, reference seismograms, ray path plot, and FK diagram
@@ -1853,9 +1868,20 @@ def GMV_FK_ray(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict
     f11, f22, f111, f222 = freq
     lat_ant, lon_ant     = antipode(event_dic["lat"], event_dic["lon"])
     
-    # Start and end of movies in seconds
-    print("Movie will start at "+str(start_movie)+"s and end at "+str(end_movie)+"s with interval "+str(interval*timestep)+"s.")
+    start_movie_index = int((start_movie-start)/timestep)
+    end_movie_index   = int((end_movie-start)/timestep)
+
+    seismo_labels = np.arange(1000, int(end)+1,1000)
     
+    if timeframes is not None:
+        print("The following time frames in seconds will be plotted:")
+        print(*timeframes)
+        timeframes = ((np.array(timeframes)-start)/timestep).astype(int)
+    else:
+        timeframes = range(start_movie_index, end_movie_index+1, interval)
+        # Start and end of movies in seconds
+        print("Movie will start at "+str(start_movie)+"s and end at "+str(end_movie)+"s with interval "+str(interval*timestep)+"s.")
+        
     if plot_3c:
         print("Ready to plot 3C figures!")
     else:
@@ -1868,12 +1894,7 @@ def GMV_FK_ray(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict
         
     print("Plotting seismograms, ray path, and FK analysis...")
     
-    start_movie_index = int((start_movie-start)/timestep)
-    end_movie_index   = int((end_movie-start)/timestep)
-
-    seismo_labels = np.arange(1000, int(end)+1,1000)
-    
-    for it in range(start_movie_index, end_movie_index+1, interval): # from start time to end time 
+    for it in timeframes: # from start time to end time 
         if it == start_movie_index or (start+it*timestep) % 500 == 0:
             print("Plotting %06.1f s..."%(start+it*timestep))
         # Setting up the plot
@@ -2167,9 +2188,9 @@ def GMV_FK_ray(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict
         
         if plot_save:
             if plot_3c:
-                plt.savefig(movie_directory+ event_dic['event_name'] +"_3C_FKanalysis_raypath_"+ "%06.1f"%(start+it*timestep)+"s.png", dpi=120)
+                plt.savefig(movie_directory+ event_dic['event_name'] +"_3C_FKanalysis_raypath_"+ "%06.1f"%(start+it*timestep)+"s."+save_option, dpi=save_dpi)
             else:
-                plt.savefig(movie_directory+ event_dic['event_name'] +"_FKanalysis_raypath_"+ "%06.1f"%(start+it*timestep)+"s.png", dpi=120)
+                plt.savefig(movie_directory+ event_dic['event_name'] +"_FKanalysis_raypath_"+ "%06.1f"%(start+it*timestep)+"s."+save_option, dpi=save_dpi)
                 
             plt.clf()
             plt.close()
@@ -2189,8 +2210,9 @@ def GMV_FK_ray(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict
 def GMV_FK4(GMV, event_dic, stream_info, thechosenones, subarray_dicts, FK_dict,
             start_movie, end_movie, interval,
             vmin, vmax, arr_img, 
-            movie_directory, slow_unit="sdeg",
-            plot_save=False, plot_3c=True, plot_rotate=True):
+            movie_directory, timeframes=None, slow_unit="sdeg",
+            plot_save=False, save_option="png", save_dpi=120,
+            plot_3c=True, plot_rotate=True):
     
     """
     Plot single timestep of GMV, reference seismograms, ray path plot, and FK diagram
@@ -2227,9 +2249,20 @@ def GMV_FK4(GMV, event_dic, stream_info, thechosenones, subarray_dicts, FK_dict,
     f11, f22, f111, f222 = freq
     lat_ant, lon_ant     = antipode(event_dic["lat"], event_dic["lon"])
     
-    # Start and end of movies in seconds
-    print("Movie will start at "+str(start_movie)+"s and end at "+str(end_movie)+"s with interval "+str(interval*timestep)+"s.")
-    
+    start_movie_index = int((start_movie-start)/timestep)
+    end_movie_index   = int((end_movie-start)/timestep)
+
+    seismo_labels = np.arange(1000, int(end)+1,1000)
+
+    if timeframes is not None:
+        print("The following time frames in seconds will be plotted:")
+        print(*timeframes)
+        timeframes = ((np.array(timeframes)-start)/timestep).astype(int)
+    else:
+        timeframes = range(start_movie_index, end_movie_index+1, interval)
+        # Start and end of movies in seconds
+        print("Movie will start at "+str(start_movie)+"s and end at "+str(end_movie)+"s with interval "+str(interval*timestep)+"s.")
+        
     if plot_3c:
         print("Ready to plot 3C figures!")
     else:
@@ -2242,12 +2275,7 @@ def GMV_FK4(GMV, event_dic, stream_info, thechosenones, subarray_dicts, FK_dict,
         
     print("Plotting GMV and 4 FK analysis plots...")
     
-    start_movie_index = int((start_movie-start)/timestep)
-    end_movie_index   = int((end_movie-start)/timestep)
-
-    seismo_labels = np.arange(1000, int(end)+1,1000)
-    
-    for it in range(start_movie_index, end_movie_index+1, interval): # from start time to end time 
+    for it in timeframes: # from start time to end time 
         if it == start_movie_index or (start+it*timestep) % 500 == 0:
             print("Plotting %06.1f s..."%(start+it*timestep))
         # Setting up the plot
@@ -2527,9 +2555,9 @@ def GMV_FK4(GMV, event_dic, stream_info, thechosenones, subarray_dicts, FK_dict,
         
         if plot_save:
             if plot_3c:
-                plt.savefig(movie_directory+ event_dic['event_name'] +"_3C_4FKanalysis_"+ "%06.1f"%(start+it*timestep)+"s.png", dpi=120)
+                plt.savefig(movie_directory+ event_dic['event_name'] +"_3C_4FKanalysis_"+ "%06.1f"%(start+it*timestep)+"s."+save_option, dpi=save_dpi)
             else:
-                plt.savefig(movie_directory+ event_dic['event_name'] +"_4 FKanalysis_"+ "%06.1f"%(start+it*timestep)+"s.png", dpi=120)
+                plt.savefig(movie_directory+ event_dic['event_name'] +"_4 FKanalysis_"+ "%06.1f"%(start+it*timestep)+"s."+save_option, dpi=save_dpi)
                 
             plt.clf()
             plt.close()
@@ -2548,7 +2576,9 @@ def GMV_FK4(GMV, event_dic, stream_info, thechosenones, subarray_dicts, FK_dict,
 def GMV_Xsec(GMV, event_dic, stream_info, Xsec_dict, thechosenone_Xsec, 
              start_movie, end_movie, interval,
              vmin, vmax, arr_img, 
-             movie_directory, plot_save=False, plot_3c=True):
+             movie_directory, timeframes=None,
+             plot_save=False, save_option="png", save_dpi=120,
+             plot_3c=True):
     
     """
     Plot single timestep of GMV, reference vertical seismogram, and ZNE/ZRT cross-sections
@@ -2581,9 +2611,20 @@ def GMV_Xsec(GMV, event_dic, stream_info, Xsec_dict, thechosenone_Xsec,
     cross_sec = Xsec_dict["cross_sec"]
     dist_sta_Xsec = Xsec_dict["dist_sta_Xsec"]
     
-    # Start and end of movies in seconds
-    print("Movie will start at "+str(start_movie)+"s and end at "+str(end_movie)+"s with interval "+str(interval*timestep)+"s.")
-    
+    start_movie_index = int((start_movie-start)/timestep)
+    end_movie_index   = int((end_movie-start)/timestep)
+
+    seismo_labels = np.arange(1000, int(end)+1,1000)
+
+    if timeframes is not None:
+        print("The following time frames in seconds will be plotted:")
+        print(*timeframes)
+        timeframes = ((np.array(timeframes)-start)/timestep).astype(int)
+    else:
+        timeframes = range(start_movie_index, end_movie_index+1, interval)
+        # Start and end of movies in seconds
+        print("Movie will start at "+str(start_movie)+"s and end at "+str(end_movie)+"s with interval "+str(interval*timestep)+"s.")
+        
     if plot_3c:
         print("Ready to plot 3C figures!")
     else:
@@ -2596,12 +2637,7 @@ def GMV_Xsec(GMV, event_dic, stream_info, Xsec_dict, thechosenone_Xsec,
         
     print("Plotting GMV and crosssections instead of regular seismograms...")
     
-    start_movie_index = int((start_movie-start)/timestep)
-    end_movie_index   = int((end_movie-start)/timestep)
-
-    seismo_labels = np.arange(1000, int(end)+1,1000)
-    
-    for it in range(start_movie_index, end_movie_index+1, interval): # from start time to end time 
+    for it in timeframes: # from start time to end time 
         if it == start_movie_index or (start+it*timestep) % 500 == 0:
             print("Plotting %06.1f s..."%(start+it*timestep))
         # Setting up the plot
@@ -2747,9 +2783,9 @@ def GMV_Xsec(GMV, event_dic, stream_info, Xsec_dict, thechosenone_Xsec,
     
         if plot_save:
             if plot_3c:
-                plt.savefig(movie_directory+ event_dic['event_name'] +"_3C_Xsec_"+ "%06.1f"%(start+it*timestep)+"s.png", dpi=120)
+                plt.savefig(movie_directory+ event_dic['event_name'] +"_3C_Xsec_"+ "%06.1f"%(start+it*timestep)+"s."+save_option, dpi=save_dpi)
             else:
-                plt.savefig(movie_directory+ event_dic['event_name'] +"_Xsec_"+ "%06.1f"%(start+it*timestep)+"s.png", dpi=120)
+                plt.savefig(movie_directory+ event_dic['event_name'] +"_Xsec_"+ "%06.1f"%(start+it*timestep)+"s."+save_option, dpi=save_dpi)
             plt.clf()
             plt.close()       
         else:

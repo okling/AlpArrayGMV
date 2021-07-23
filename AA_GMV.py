@@ -47,6 +47,7 @@ start = 500   # min: 0    # default: 500
 end   = 7000  # max: 7200 # default: 7000
 
 # Start and end of movie in seconds (min: 0, max: 7200)
+timeframes  = [1772,2220,2527]  # plot only certain time frame in list or array (Default: None)
 start_movie = 1200  # min: 0, test: 1300
 end_movie   = 3000  # max: 7200, test: 3150
 
@@ -70,9 +71,9 @@ stations = ["HU.CSKK.", "OE.FETA.", "CH.GRIMS.", "FR.OGVG.00"]
 # Select phases to plot on seismograms
 model     = "iasp91" # background model (e.g. iasp91/ak135)
 # phases    = ["Pg","Sg"] [Local events]
-# phases    = ['P','PcP','PP','PPP','S','SS','SSS','SKS','4kmps','4.4kmps'] # Phases to plot on seismograms [Teleseismic events]
+phases    = ['P','PcP','PP','PPP','S','SS','SSS','SKS','4kmps','4.4kmps'] # Phases to plot on seismograms [Teleseismic events]
 # phases    = ['P','Pdiff','PKP','PKIKP','PP','PPP','S','SS','SSS','SKS','SKKS','4kmps','4.4kmps'] # Phases to plot on seismograms [100deg<dist<120deg]
-phases    = ['Pdiff','PKP','PKiKP','PKIKP','PP','PPP','SS','SSS','SKS','SKKS','4kmps','4.4kmps','SKKKS','SKSP','PPPS','SSP']  # Phases to plot on seismograms [Core events]
+# phases    = ['Pdiff','PKP','PKiKP','PKIKP','PP','PPP','SS','SSS','SKS','SKKS','4kmps','4.4kmps','SKKKS','SKSP','PPPS','SSP']  # Phases to plot on seismograms [Core events]
 
 # Plotting parameters for movies
 plot_local  = False # Plot local earthquake instead of teleseismic (GMV only; enter event info in the utility code)
@@ -81,9 +82,11 @@ plot_3c     = True  # Plot 3C motion
 plot_rotate = True  # Plot ZRT instead of ZNE in the simple map seismograms
 plot_Xsec   = False # Plot Xsec instead of seismograms (includes rotation)
 plot_FK     = False # Plot FK-analysis
-plot_FK_ray = False # Plot FK-analysis + ray path
-plot_FK4    = True # Plot 4 FK-analysis
+plot_FK_ray = True # Plot FK-analysis + ray path
+plot_FK4    = False # Plot 4 FK-analysis
 plot_save   = False # Save plots in movie directory
+save_option = "tiff" # Save format (Default: "png")
+save_dpi    = 120   # Saved figure resolution (Default: 120)
 
 # Parameters for GMV
 vmin = -0.1   # colorbar min, default: -0.1
@@ -226,8 +229,10 @@ if plot_FK_ray:
     GMV_FK_ray(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict,
            start_movie, end_movie, interval,
            vmin, vmax, arr_img, 
-           movie_directory, slow_unit=slow_unit,
-           plot_save=plot_save, plot_3c=plot_3c, plot_rotate=plot_rotate)
+           movie_directory, timeframes=timeframes,
+           slow_unit=slow_unit,
+           plot_save=plot_save, save_option=save_option, save_dpi=save_dpi,
+           plot_3c=plot_3c, plot_rotate=plot_rotate)
 
 ## ====================
 ## single FK analysis plot
@@ -236,8 +241,10 @@ elif plot_FK:
     GMV_FK(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict,
            start_movie, end_movie, interval,
            vmin, vmax, arr_img, 
-           movie_directory, slow_unit=slow_unit,
-           plot_save=plot_save, plot_3c=plot_3c, plot_rotate=plot_rotate)
+           movie_directory, timeframes=timeframes,
+           slow_unit=slow_unit,
+           plot_save=plot_save, save_option=save_option, save_dpi=save_dpi,
+           plot_3c=plot_3c, plot_rotate=plot_rotate)
     
 ## ====================
 ## single FK analysis plot
@@ -246,8 +253,10 @@ elif plot_FK4:
     GMV_FK4(GMV, event_dic, stream_info, thechosenones, subarrays, FK_dict,
             start_movie, end_movie, interval,
             vmin, vmax, arr_img, 
-            movie_directory, slow_unit="sdeg",
-            plot_save=plot_save, plot_3c=plot_3c, plot_rotate=plot_rotate)
+            movie_directory, timeframes=timeframes,
+            slow_unit="sdeg",
+            plot_save=plot_save, save_option=save_option, save_dpi=save_dpi,
+            plot_3c=plot_3c, plot_rotate=plot_rotate)
     
 ## ====================
 # # Cross-section plot
@@ -256,7 +265,9 @@ elif plot_Xsec:
     GMV_Xsec(GMV, event_dic, stream_info, Xsec_dict, thechosenone_Xsec, 
              start_movie, end_movie, interval,
              vmin, vmax, arr_img, 
-             movie_directory, plot_save=plot_save, plot_3c=plot_3c)
+             movie_directory, timeframes=timeframes,
+             plot_save=plot_save, save_option=save_option, save_dpi=save_dpi,
+             plot_3c=plot_3c)
 
 ## ====================
 ## Only GMV and reference seismograms
@@ -264,7 +275,8 @@ else:
     GMV_plot(GMV, event_dic, stream_info, thechosenone, 
              start_movie, end_movie, interval,
              vmin, vmax, arr_img, 
-             movie_directory, plot_save=plot_save,
+             movie_directory, timeframes=timeframes,
+             plot_save=plot_save, save_option=save_option, save_dpi=save_dpi, 
              plot_local=plot_local, plot_3c=plot_3c, plot_rotate=plot_rotate)
         
     
