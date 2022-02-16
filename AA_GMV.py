@@ -44,16 +44,17 @@ logo_loc = '/Users/angelling/Documents/ETH/figures/AA_logo.png'
 
 # Choose the starting and ending time in seconds after OT shown in the video (min: 0, max: 7200)
 start = 500   # min: 0    # default: 500
-end   = 7000  # max: 7200 # default: 7000
+end   = 7000  # max: 7200 # default: 7000 
 
-# Start and end of movie in seconds (min: 0, max: 7200)
-timeframes  = [1772,2220,2527]  # plot only certain time frame in list or array (Default: None)
-start_movie = 1200  # min: 0, test: 1300
-end_movie   = 3000  # max: 7200, test: 3150
-
+# Movie setting
 # Choose movie interval (default: 1s)
-select_interval = True # default: False 
+select_interval = True # continuous: False 
 interval        = 500  # in s, test: 500 (every 500s), default doesn't read this
+timeframes      = [1772,2220,2527] # plot only certain time frame in list or array, e.g.[1772,2220,2527] (Default: None)
+# Start and end of movie in seconds if continuous (min: 0, max: 7200)
+start_movie     = 1200  # min: 0, test: 1300
+end_movie       = 3000  # max: 7200, test: 3150
+timelabel       = "hr"   # "s"/"min"/"hr" for seismograms
 
 # Choose bandpass freq
 f1 = 1/200. # min freq, default 1/200
@@ -62,18 +63,22 @@ f2 = 1/50.  # max freq, default 1/50
 # Select a reference station to plot by network, name, and location (e.g. CH.FUSIO.,CH.GRIMS.)
 # if plot_Xsec is True, this will be ignored
 station = "CH.GRIMS." 
+# station = "CH.ROTHE."
 # station = "Z3.A061A."
 # station = "Z3.A025A.00"
 # station = "Z3.A033A.00"
 # stations = ["BW.BDGS.", "OE.FETA.", "CH.GRIMS.", "FR.OGVG.00"]
 stations = ["HU.CSKK.", "OE.FETA.", "CH.GRIMS.", "FR.OGVG.00"]
 
+# Select station threshold
+threshold = 0.25 # Default: None
+
 # Select phases to plot on seismograms
 model     = "iasp91" # background model (e.g. iasp91/ak135)
 # phases    = ["Pg","Sg"] [Local events]
-phases    = ['P','PcP','PP','PPP','S','SS','SSS','SKS','4kmps','4.4kmps'] # Phases to plot on seismograms [Teleseismic events]
+# phases    = ['P','PcP','PP','PPP','S','SS','SSS','SKS','4kmps','4.4kmps'] # Phases to plot on seismograms [Teleseismic events]
 # phases    = ['P','Pdiff','PKP','PKIKP','PP','PPP','S','SS','SSS','SKS','SKKS','4kmps','4.4kmps'] # Phases to plot on seismograms [100deg<dist<120deg]
-# phases    = ['Pdiff','PKP','PKiKP','PKIKP','PP','PPP','SS','SSS','SKS','SKKS','4kmps','4.4kmps','SKKKS','SKSP','PPPS','SSP']  # Phases to plot on seismograms [Core events]
+phases    = ['Pdiff','PKP','PKiKP','PKIKP','PP','PPP','SS','SSS','SKS','SKKS','4kmps','4.4kmps','SKKKS','SKSP','PPPS','SSP']  # Phases to plot on seismograms [Core events]
 
 # Plotting parameters for movies
 plot_local  = False # Plot local earthquake instead of teleseismic (GMV only; enter event info in the utility code)
@@ -82,10 +87,10 @@ plot_3c     = True  # Plot 3C motion
 plot_rotate = True  # Plot ZRT instead of ZNE in the simple map seismograms
 plot_Xsec   = False # Plot Xsec instead of seismograms (includes rotation)
 plot_FK     = False # Plot FK-analysis
-plot_FK_ray = True # Plot FK-analysis + ray path
+plot_FK_ray = False # Plot FK-analysis + ray path
 plot_FK4    = False # Plot 4 FK-analysis
 plot_save   = False # Save plots in movie directory
-save_option = "tiff" # Save format (Default: "png")
+save_option = "png" # Save format (Default: "png")
 save_dpi    = 120   # Saved figure resolution (Default: 120)
 
 # Parameters for GMV
@@ -120,13 +125,15 @@ start_dc   = 2000. # start of the trace
 end_dc     = 4000. # end of the trace
 
 # ====================
-# %% Read catalog 
+# %% Read event catalog 
 
 # Data directories
 directory = directory + event_name + "/"
 
 for f in listdir(directory):
     if f.endswith('.a'):
+        folder = f
+    elif f in ["continuous1"]:
         folder = f
         
 data_directory    = directory + folder +"/"
@@ -164,7 +171,7 @@ data_dic = read_data_inventory(prodata_directory, resp_directory, event_dic, rea
 # %% Normalize displacement and store good data
 
 ## Filter and normalize one single event
-GMV, stream_info = Normalize(data_dic, event_dic, f1, f2, start, end, plot_Xsec=plot_Xsec)
+GMV, stream_info = Normalize(data_dic, event_dic, f1, f2, start, end, threshold=threshold, plot_Xsec=plot_Xsec)
 
 # ====================
 # %% Plot dispersion curve of reference station
@@ -272,12 +279,18 @@ elif plot_Xsec:
 ## ====================
 ## Only GMV and reference seismograms
 else:
+    # GMV_plot(GMV, event_dic, stream_info, thechosenone, 
+    #          start_movie, end_movie, interval,
+    #          vmin, vmax, arr_img, 
+    #          movie_directory, timeframes=timeframes, timelabel=timelabel,
+    #          plot_save=plot_save, save_option=save_option, save_dpi=save_dpi, 
+    #          plot_local=plot_local, plot_3c=plot_3c, plot_rotate=plot_rotate)
     GMV_plot(GMV, event_dic, stream_info, thechosenone, 
              start_movie, end_movie, interval,
              vmin, vmax, arr_img, 
-             movie_directory, timeframes=timeframes,
+             movie_directory, timeframes=timeframes, timelabel=timelabel,
              plot_save=plot_save, save_option=save_option, save_dpi=save_dpi, 
-             plot_local=plot_local, plot_3c=plot_3c, plot_rotate=plot_rotate)
+             plot_local=False, plot_3c=plot_3c, plot_rotate=plot_rotate)
         
     
 print("--- %.3f seconds ---" % (time.time() - prog_starttime))

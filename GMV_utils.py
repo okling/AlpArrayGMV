@@ -118,10 +118,10 @@ def readevent(event_name, data_directory, local=False):
     
     # Enter local event info by hand
     elif local:
-        lat_event = 46.91
-        lon_event = 9.13
-        dep_event = 0.3
-        ev_otime  = obspy.UTCDateTime("2020-10-25 19:35:43")
+        lat_event = -20.546#46.91
+        lon_event = -175.390#9.13
+        dep_event = 0.0#0.3
+        ev_otime  = obspy.UTCDateTime("2022-01-15 04:14:45")#obspy.UTCDateTime("2020-10-25 19:35:43")
         time_event_sec = ev_otime.timestamp
         year   = ev_otime.year
         month  = ev_otime.month
@@ -130,8 +130,8 @@ def readevent(event_name, data_directory, local=False):
         minute = ev_otime.minute
         second = float(ev_otime.second) + ev_otime.microsecond / 1E6
             
-        mag_type  = "ML"
-        mag_event = 4.4
+        mag_type  = "M" #"ML"
+        mag_event = 5.8 #4.4
     
     fe = FlinnEngdahl()
     event_dic['event_name'] = event_name
@@ -186,7 +186,7 @@ def filter_streams(st, f1, f2, f=None, ftype="bandpass"):
     
     return st_filtered
 
-def read_data_inventory(prodata_directory, resp_directory, event_dic, read_obs=False, plot_3c=True):
+def read_data_inventory(prodata_directory, resp_directory, event_dic, tstart=0, tend=7200, read_obs=False, plot_3c=True):
     """
     Read raw data and station inventory
     
@@ -211,27 +211,32 @@ def read_data_inventory(prodata_directory, resp_directory, event_dic, read_obs=F
     name_sta = np.array([])
     net_sta  = np.array([])
     
-    lat_event = event_dic["lat"]
-    lon_event = event_dic["lon"]
-    region    = event_dic["region"]
+    lat_event  = event_dic["lat"]
+    lon_event  = event_dic["lon"]
+    region     = event_dic["region"]
+    event_time = event_dic["time_sec"] 
+    stime      = obspy.UTCDateTime(event_time + tstart) 
+    etime      = obspy.UTCDateTime(event_time + tend)
     data_dict_list = []
     
     obs = 0 # obs counter
     Z12_count  = 0 # Z12 station counter 
-    data_count = 7200*20-(7200*20*0.1) # Stations with data missing more than 10% of their samples are discarded.
+    data_count = (tend-tstart)*20 - ((tend-tstart)*20*0.1) # Stations with data missing more than 10% of their samples are discarded.
     
-    print ('Processing data of '+region+' earthquake...')
+    print ('Processing data of '+event_dic['mag_type'].capitalize()+"%.1f "%event_dic['mag']+region+' earthquake...')
+    print ('Reading trace from '+str(tstart)+' to '+str(tend)+'s from the origin time...')
     
     for file in sorted(listdir(prodata_directory)):
         if file.endswith('HHZ'):
             fsp = file.split(".")
             try:
                 # HHZ
-                tr11 = obspy.read(prodata_directory+file) # read the trace
+                tr11    = obspy.read(prodata_directory+file, starttime=stime, endtime=etime) # read the trace
                 inv_sta = obspy.read_inventory(resp_directory+'STXML.'+file) # read inventory
                 if tr11[0].stats.npts < data_count:
                     continue              
-            except Exception: # If file not present, skip this station
+            except Exception as e: # If file not present, skip this station
+                # print(e)
                 continue
             
             # Read station location
@@ -249,7 +254,7 @@ def read_data_inventory(prodata_directory, resp_directory, event_dic, read_obs=F
             tr11[0].stats["coordinates"]["elevation"] = elv
         
             try: # Read HHN
-                tr22 = obspy.read(prodata_directory+fsp[0]+"."+fsp[1]+"."+fsp[2]+".HHN")              
+                tr22 = obspy.read(prodata_directory+fsp[0]+"."+fsp[1]+"."+fsp[2]+".HHN", starttime=stime, endtime=etime)              
                 if tr22[0].stats.npts < data_count:
                     continue 
                 tr22[0].stats.distance       = dist_deg
@@ -258,9 +263,10 @@ def read_data_inventory(prodata_directory, resp_directory, event_dic, read_obs=F
                 tr22[0].stats["coordinates"]["latitude"]  = lat
                 tr22[0].stats["coordinates"]["longitude"] = lon
                 tr22[0].stats["coordinates"]["elevation"] = elv               
-            except Exception:
+            except Exception as e: # If file not present, skip this station
+                # print(e)
                 try: # Read HH1
-                    tr22 = obspy.read(prodata_directory+fsp[0]+"."+fsp[1]+"."+fsp[2]+".HH1")
+                    tr22 = obspy.read(prodata_directory+fsp[0]+"."+fsp[1]+"."+fsp[2]+".HH1", starttime=stime, endtime=etime)
                     if tr22[0].stats.npts < data_count:
                         continue 
                 except Exception:
@@ -285,7 +291,9 @@ def read_data_inventory(prodata_directory, resp_directory, event_dic, read_obs=F
                         tr22 = obspy.Stream(traces=[tr22])
                         
             try: # Read HHE
-                tr33 = obspy.read(prodata_directory+fsp[0]+"."+fsp[1]+"."+fsp[2]+".HHE")
+                tr33 = obspy.read(prodata_directory+fsp[0]+"."+fsp[1]+"."+fsp[2]+".HHE", starttime=stime, endtime=etime)
+                if tr33[0].stats.npts < data_count:
+                    continue                 
                 tr33[0].stats.distance    = dist_deg
                 tr33[0].stats.backazimuth = bazi
                 tr33[0].stats["coordinates"] = {}
@@ -294,10 +302,11 @@ def read_data_inventory(prodata_directory, resp_directory, event_dic, read_obs=F
                 tr33[0].stats["coordinates"]["elevation"] = elv            
             except Exception:
                 try: # Read HH2
-                    tr33 = obspy.read(prodata_directory+fsp[0]+"."+fsp[1]+"."+fsp[2]+".HH2")
+                    tr33 = obspy.read(prodata_directory+fsp[0]+"."+fsp[1]+"."+fsp[2]+".HH2", starttime=stime, endtime=etime)
                     if tr33[0].stats.npts < data_count:
                         continue 
-                except Exception:
+                except Exception as e: # If file not present, skip this station
+                    # print(e)
                     if plot_3c:
                         continue
                     else:
@@ -364,7 +373,7 @@ def read_data_inventory(prodata_directory, resp_directory, event_dic, read_obs=F
             fsp = file.split(".")
             try:
                 file_ch = fsp[0]+"."+fsp[1]+"."+fsp[2]+".CH*"
-                ch      = obspy.read(prodata_directory+file_ch) # read as a stream
+                ch      = obspy.read(prodata_directory+file_ch, starttime=stime, endtime=etime) # read as a stream
                 inv_sta = obspy.read_inventory(resp_directory+'STXML.'+file_ch)   # read all channel inventory
                 ch_zne  = ch.copy()._rotate_to_zne(inv_sta, components=('Z12'))   # rotate to ZNE
                 
@@ -468,7 +477,7 @@ def read_data_inventory(prodata_directory, resp_directory, event_dic, read_obs=F
     
     return data_inv_dic
 
-def Normalize(data_inv_dic, event_dic, f1, f2, start, end, plot_Xsec=False): 
+def Normalize(data_inv_dic, event_dic, f1, f2, start, end, threshold=None, plot_Xsec=False): 
     """
     Filter and normalize streams for one single event
     
@@ -504,18 +513,23 @@ def Normalize(data_inv_dic, event_dic, f1, f2, start, end, plot_Xsec=False):
     mag = event_dic['mag']
     
     # Starting and ending time after OT
-    starttime = obspy.UTCDateTime(time_event_sec + start) 
-    endtime   = obspy.UTCDateTime(time_event_sec + end)
+    if  type(start) is obspy.core.utcdatetime.UTCDateTime and type(end) is obspy.core.utcdatetime.UTCDateTime:
+        starttime = start
+        endtime   = end
+    else:
+        starttime = obspy.UTCDateTime(time_event_sec + start) 
+        endtime   = obspy.UTCDateTime(time_event_sec + end)
     
     # Filter and downsample streams
     print ('Filtering between %.2f s and %.2f s...' % (1/f2, 1/f1))
     
     st_all_raw = st1+st2+st3
-    st_all_f = filter_streams(st_all_raw.copy(), f1, f2)
+    st_all_f   = filter_streams(st_all_raw, f1, f2)
+    print(st_all_f)
     
     print ('Trimming traces from '+str(start)+'s to '+str(end)+'s...')
     # Trim the filtered traces
-    st_all = st_all_f.copy().trim(starttime, endtime, pad=True, fill_value=0)
+    st_all = st_all_f.trim(starttime, endtime, pad=True, fill_value=0)
     st_all.decimate(2) # downsample the stream from 20 Hz to 10 Hz
     st   = st_all[:len(st1)]
     st_N = st_all[len(st1):len(st1)+len(st2)]
@@ -568,11 +582,15 @@ def Normalize(data_inv_dic, event_dic, f1, f2, start, end, plot_Xsec=False):
     
     # Remove noisy stations
     print ('Removing noisy stations...')
+    
     # Remove traces with STD above a threshold # default: 0.3
-    if mag >= 7.0:
-        threshold = 0.25# default: 0.25
+    if threshold:
+        threshold = threshold # set by hand
     else:
-        threshold = 0.3  # default: 0.3
+        if mag >= 7.0:
+            threshold = 0.25 # default: 0.25
+        else:
+            threshold = 0.3  # default: 0.3
     goodstations = ((tr1_std <= threshold) & (tr2_std <= threshold) & (tr3_std <= threshold)) # Store good stations
     
     # Store good stations
@@ -730,9 +748,13 @@ def select_FK(event_dic, data_dic, start, end, model, freq, thechosenone, plot_C
     lon_rec  = []
     elv_rec  = []
     dist_rec = []
-
-    starttime_fk = obspy.UTCDateTime(event_dic["time_sec"] + start) 
-    endtime_fk   = obspy.UTCDateTime(event_dic["time_sec"] + end)
+    
+    if  type(start) is obspy.core.utcdatetime.UTCDateTime and type(end) is obspy.core.utcdatetime.UTCDateTime:
+        starttime_fk = start
+        endtime_fk   = end
+    else:
+        starttime_fk = obspy.UTCDateTime(event_dic["time_sec"] + start) 
+        endtime_fk   = obspy.UTCDateTime(event_dic["time_sec"] + end)
     
     for i in range(len(data_dic["net_sta"])):
         if plot_CH_only:
@@ -881,9 +903,13 @@ def plot_dispersion_curve(data_dic, event_dic, station, chan, start_dc, end_dc, 
     else:
         st_select = "st"
     
-    time_event_sec = event_dic['time_sec']            
-    starttime_dc   = obspy.UTCDateTime(time_event_sec + start_dc) 
-    endtime_dc     = obspy.UTCDateTime(time_event_sec + end_dc)
+    time_event_sec = event_dic['time_sec']   
+    if  type(start_dc) is obspy.core.utcdatetime.UTCDateTime and type(end_dc) is obspy.core.utcdatetime.UTCDateTime:
+        starttime_dc = start_dc
+        endtime_dc   = end_dc
+    else:
+        starttime_dc   = obspy.UTCDateTime(time_event_sec + start_dc) 
+        endtime_dc     = obspy.UTCDateTime(time_event_sec + end_dc)
     
     st = data_dic[st_select][thechosenone]
     st_work = st.copy()
@@ -927,7 +953,7 @@ def plot_dispersion_curve(data_dic, event_dic, station, chan, start_dc, end_dc, 
     if save:
         plt.savefig(save + event_dic["event_name"] + "_" + station + "_DispersionCurve.pdf", dpi=150)
 
-def phase_marker(arr, ax, channel, start, end, move=False, plot_local=False, move_label=["Sg","PcP","PKP","PKiKP","SKS"], ignore=['PPP','SKKKS','SKSP','PPPS','SSP','PKiKP']):
+def phase_marker(arr, ax, channel, start, end, timelabel="s", move=False, plot_local=False, move_label=["Sg","PcP","PKP","PKiKP","SKS"], ignore=['PPP','SKKKS','SKSP','PPPS','SSP','PKiKP']):
     """
     Plot phase marker of the selected station on seismograms
     
@@ -970,15 +996,30 @@ def phase_marker(arr, ax, channel, start, end, move=False, plot_local=False, mov
             print("Please specify the channel: Z, E, N, R or T")
             break
         phase_time = arr[i].time
+        
+        if timelabel == "hr":
+            phase_time = phase_time/(60*60)
+        elif timelabel == "min":
+            phase_time = phase_time/60
+        else:
+            phase_time = phase_time
         if phase_time >= end or phase_time <= start:
             continue
         
         ax.axvline(x=phase_time, color="b", linewidth=0.8)
         
-        if plot_local:
-            x_adjust = 3
+        # phase text label adjustment
+
+        if timelabel == "hr":
+            x_adjust = 0.005
+        elif timelabel == "min":
+            x_adjust = 0.2
         else:
-            x_adjust = 12
+            if plot_local:
+                x_adjust = 3
+            else:
+                x_adjust = 12
+            
         if phase_label in repeat or phase_label in move_label:
             ax.text(x=phase_time+x_adjust, y=-0.9*n, s=phase_label, color="b", fontsize=8, bbox=props) # plot label on the bottom
         else:
@@ -1249,7 +1290,7 @@ def mcolorbar(mappable, vmin, vmax, title=None):
 def GMV_plot(GMV, event_dic, stream_info, thechosenone, 
              start_movie, end_movie, interval,
              vmin, vmax, arr_img, 
-             movie_directory, timeframes = None,
+             movie_directory, timeframes=None, timelabel="s",
              plot_save=False, save_option="png", save_dpi=120,
              plot_local=False, plot_3c=True, plot_rotate=True):
     
@@ -1284,10 +1325,22 @@ def GMV_plot(GMV, event_dic, stream_info, thechosenone,
     
     start_movie_index = int((start_movie-start)/timestep)
     end_movie_index   = int((end_movie-start)/timestep)
-    if plot_local:
-        seismo_labels = np.arange(int(start),int(end)+1,100)
+    
+    if timelabel == "hr":
+        d_time        = 60*60
+        seismo_labels = np.arange(round(start/d_time, 2)+0.01, round(end/d_time, 2), 0.25)
+        print("Seismograms will be plotted in Hours.")
+    elif timelabel == "min":
+        d_time        = 60
+        seismo_labels = np.arange(round(start/d_time+10, -1), round(end/d_time, -1)+1, 15)
+        print("Seismograms will be plotted in Minutes.")
     else:
-        seismo_labels = np.arange(1000, int(end)+1,1000)
+        d_time = 1
+        if plot_local:
+            seismo_labels = np.arange(int(start), int(end)+1, 100)
+        else:
+            seismo_labels = np.arange(round(start+1, -3), round(end, -3)+1, 1000)
+        print("Seismograms will be plotted in Seconds.")
     
     if timeframes is not None:
         print("The following time frames in seconds will be plotted:")
@@ -1296,7 +1349,12 @@ def GMV_plot(GMV, event_dic, stream_info, thechosenone,
     else:
         timeframes = range(start_movie_index, end_movie_index+1, interval)
         # Start and end of movies in seconds
-        print("Movie will start at "+str(start_movie)+"s and end at "+str(end_movie)+"s with interval "+str(interval*timestep)+"s.")
+        if timelabel == "hr":
+            print("Movie will start at %02.1f"%(start_movie/d_time)+" hr ("+str(start_movie)+"s) after OT and end at %02.1f"%(end_movie/d_time)+" hr ("+str(end_movie)+"s) after OT with interval "+str(interval*timestep)+"s.")
+        elif timelabel == "min":
+            print("Movie will start at %04.1f"%(start_movie/d_time)+" min ("+str(start_movie)+"s) after OT and end at %04.1f"%(end_movie/d_time)+" min ("+str(end_movie)+"s) after OT with interval "+str(interval*timestep)+"s.")
+        else:
+            print("Movie will start at "+str(start_movie)+"s after OT and end at "+str(end_movie)+"s after OT with interval "+str(interval*timestep)+"s.")
         
     if plot_3c:
         print("Ready to plot 3C figures!")
@@ -1354,8 +1412,9 @@ def GMV_plot(GMV, event_dic, stream_info, thechosenone,
         else:
             x_sta, y_sta = m(lon_sta_new, lat_sta_new)
             alpmap = m.scatter(x_sta, y_sta, c=GMV["GMV_Z"][:,it], edgecolors='k', marker='o', s=45, cmap='bwr', vmin=vmin, vmax=vmax, zorder=3, ax=ax1)
-        # Plot reference station
-        alpmap_n = m.plot(x_sta[thechosenone["sta_index"]], y_sta[thechosenone["sta_index"]]+1, fillstyle='none', markeredgecolor="lime", markeredgewidth=3, marker="o", markersize=8, zorder=4, ax=ax1)
+        # Plot reference station (Plotting it again to avoid being covered by other dots)
+        alpmap_n1= m.scatter(x_sta[thechosenone["sta_index"]], y_sta[thechosenone["sta_index"]], c=GMV["GMV_Z"][thechosenone["sta_index"],it], edgecolors='k', marker='o', s=45, cmap='bwr', vmin=vmin, vmax=vmax, zorder=4, ax=ax1)
+        alpmap_n = m.plot(x_sta[thechosenone["sta_index"]], y_sta[thechosenone["sta_index"]], fillstyle='none', markeredgecolor="lime", markeredgewidth=3, marker="o", markersize=8, zorder=5, ax=ax1)
         
         if plot_local: # Plot local epicenter
             x_eq, y_eq = m(event_dic["lon"], event_dic["lat"])
@@ -1380,15 +1439,15 @@ def GMV_plot(GMV, event_dic, stream_info, thechosenone,
         
         ax1.add_artist(ab)
         
-        # Plot seismograms
+        # Plot reference seismograms
         # HHZ
-        ax2.plot(time_st+start, GMV["GMV_Z"][thechosenone["sta_index"]], color="k", linewidth=1.5, label=thechosenone["sta_name"]+".Z")
-        ax2.axvline(x=start+it*timestep, color="r", linewidth=1.2) # Time marker
+        ax2.plot( (time_st+start)/d_time, GMV["GMV_Z"][thechosenone["sta_index"]], color="k", linewidth=1.5, label=thechosenone["sta_name"]+".Z")
+        ax2.axvline(x=(start+it*timestep)/d_time, color="r", linewidth=1.2) # Time marker
         # Plot phase marker for channel Z
-        phase_marker(thechosenone["arr"], ax2, "Z", start, end, plot_local=plot_local)
+        phase_marker(thechosenone["arr"], ax2, "Z", start/d_time, end/d_time, timelabel=timelabel, plot_local=plot_local)
         
         ax2.grid(b=True, which='major')
-        ax2.set_xlim([start,end])
+        ax2.set_xlim([start/d_time,end/d_time])
         ax2.set_ylim([-1.1,1.1]) 
         ax2.set_xticks(seismo_labels)
         ax2.set_xticklabels([])
@@ -1396,15 +1455,15 @@ def GMV_plot(GMV, event_dic, stream_info, thechosenone,
         
         # HHN/R
         if plot_rotate:
-            ax3.plot(time_st+start, GMV["GMV_R"][thechosenone["sta_index"]], color="k", linewidth=1.5, label=thechosenone["sta_name"]+".R")
-            phase_marker(thechosenone["arr"], ax3, "R", start, end, plot_local=plot_local)
+            ax3.plot((time_st+start)/d_time, GMV["GMV_R"][thechosenone["sta_index"]], color="k", linewidth=1.5, label=thechosenone["sta_name"]+".R")
+            phase_marker(thechosenone["arr"], ax3, "R", start/d_time, end/d_time, timelabel=timelabel, plot_local=plot_local)
         else:    
-            ax3.plot(time_st+start, GMV["GMV_N"][thechosenone["sta_index"]], color="k", linewidth=1.5, label=thechosenone["sta_name"]+".N")
-            phase_marker(thechosenone["arr"], ax3, "N", start, end, plot_local=plot_local)
-        ax3.axvline(x=start+it*timestep, color="r", linewidth=1.2) # Time marker
+            ax3.plot((time_st+start)/d_time, GMV["GMV_N"][thechosenone["sta_index"]], color="k", linewidth=1.5, label=thechosenone["sta_name"]+".N")
+            phase_marker(thechosenone["arr"], ax3, "N", start/d_time, end/d_time, timelabel=timelabel, plot_local=plot_local)
+        ax3.axvline(x=(start+it*timestep)/d_time, color="r", linewidth=1.2) # Time marker
         
         ax3.grid(b=True, which='major')    
-        ax3.set_xlim([start,end])
+        ax3.set_xlim([start/d_time,end/d_time])
         ax3.set_ylim([-1.1,1.1]) 
         ax3.set_xticks(seismo_labels)
         ax3.set_xticklabels([])
@@ -1413,17 +1472,22 @@ def GMV_plot(GMV, event_dic, stream_info, thechosenone,
         
         # HHE/T
         if plot_rotate:
-            ax4.plot(time_st+start, GMV["GMV_T"][thechosenone["sta_index"]], color="k", linewidth=1.5, label=thechosenone["sta_name"]+".T")
-            phase_marker(thechosenone["arr"], ax4, "T", start, end, plot_local=plot_local)
+            ax4.plot((time_st+start)/d_time, GMV["GMV_T"][thechosenone["sta_index"]], color="k", linewidth=1.5, label=thechosenone["sta_name"]+".T")
+            phase_marker(thechosenone["arr"], ax4, "T", start/d_time, end/d_time, timelabel=timelabel, plot_local=plot_local)
         else:
-            ax4.plot(time_st+start, GMV["GMV_E"][thechosenone["sta_index"]], color="k", linewidth=1.5, label=thechosenone["sta_name"]+".E")
-            phase_marker(thechosenone["arr"], ax4, "E", start, end, plot_local=plot_local)
-        ax4.axvline(x=start+it*timestep, color="r", linewidth=1.2) # Time marker
+            ax4.plot((time_st+start)/d_time, GMV["GMV_E"][thechosenone["sta_index"]], color="k", linewidth=1.5, label=thechosenone["sta_name"]+".E")
+            phase_marker(thechosenone["arr"], ax4, "E", start/d_time, end/d_time, timelabel=timelabel, plot_local=plot_local)
+        ax4.axvline(x=(start+it*timestep)/d_time, color="r", linewidth=1.2) # Time marker
         
         ax4.grid(b=True, which='major')
         ax4.tick_params(axis="x",labelsize=12)
-        ax4.set_xlabel('Time after origin [s]', fontsize=14)
-        ax4.set_xlim([start,end])
+        if timelabel == "hr":
+            ax4.set_xlabel('Time after origin [hr]', fontsize=14)
+        elif timelabel == "min":
+            ax4.set_xlabel('Time after origin [min]', fontsize=14)
+        else:
+            ax4.set_xlabel('Time after origin [s]', fontsize=14)
+        ax4.set_xlim([start/d_time,end/d_time])
         ax4.set_ylim([-1.1,1.1]) 
         ax4.set_xticks(seismo_labels)
         ax4.set_xticklabels(seismo_labels) 
@@ -1437,9 +1501,9 @@ def GMV_plot(GMV, event_dic, stream_info, thechosenone,
             else:
                 step = start+it*timestep 
             if plot_3c:
-                plt.savefig(movie_directory+ event_dic['event_name'] +"_3C_"+ "%06.1f"%(step)+"s."+save_option, dpi=save_dpi)
+                plt.savefig(movie_directory+ event_dic['event_name'] +"_3C_"+ "%07.1f"%(step)+"s."+save_option, dpi=save_dpi)
             else:
-                plt.savefig(movie_directory+ event_dic['event_name'] +"_"+ "%06.1f"%(step)+"s."+save_option, dpi=save_dpi)
+                plt.savefig(movie_directory+ event_dic['event_name'] +"_"+ "%07.1f"%(step)+"s."+save_option, dpi=save_dpi)
                 
             plt.clf()
             plt.close()
@@ -1500,7 +1564,7 @@ def GMV_FK(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict,
     start_movie_index = int((start_movie-start)/timestep)
     end_movie_index   = int((end_movie-start)/timestep)
 
-    seismo_labels = np.arange(1000, int(end)+1,1000)
+    seismo_labels = np.arange(round(start, -3), int(end)+1, 1000)
     
     if timeframes is not None:
         print("The following time frames in seconds will be plotted:")
@@ -1570,8 +1634,9 @@ def GMV_FK(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict,
         else:
             x_sta, y_sta = m(lon_sta_new, lat_sta_new)
             alpmap = m.scatter(x_sta, y_sta, c=GMV["GMV_Z"][:,it], edgecolors='k', marker='o', s=45, cmap='bwr', vmin=vmin, vmax=vmax, zorder=3, ax=ax1)
-        # Plot reference station
-        alpmap_n = m.plot(x_sta[thechosenone["sta_index"]], y_sta[thechosenone["sta_index"]]+1, fillstyle='none', markeredgecolor="lime", markeredgewidth=3, marker="o", markersize=8, zorder=4, ax=ax1)
+        # Plot reference station (Plotting it again to avoid being covered by other dots)
+        alpmap_n1= m.scatter(x_sta[thechosenone["sta_index"]], y_sta[thechosenone["sta_index"]], c=GMV["GMV_Z"][thechosenone["sta_index"],it], edgecolors='k', marker='o', s=45, cmap='bwr', vmin=vmin, vmax=vmax, zorder=4, ax=ax1)
+        alpmap_n = m.plot(x_sta[thechosenone["sta_index"]], y_sta[thechosenone["sta_index"]], fillstyle='none', markeredgecolor="lime", markeredgewidth=3, marker="o", markersize=8, zorder=5, ax=ax1)
         mcolorbar(alpmap, vmin, vmax) # Plot map colorbar
         
         ax1.set_title("%04d"% event_dic["year"]+'/'+"%02d"% event_dic["month"] +'/'+"%02d"% event_dic["day"]+' '+
@@ -1591,7 +1656,7 @@ def GMV_FK(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict,
         
         ax1.add_artist(ab)
         
-        # Plot seismograms
+        # Plot reference seismograms
         # HHZ
         ax2.plot(time_st+start, GMV["GMV_Z"][thechosenone["sta_index"]], color="k", linewidth=1.5, label=thechosenone["sta_name"]+".Z")
         ax2.axvline(x=start+it*timestep, color="r", linewidth=1.2) # Time marker
@@ -1871,7 +1936,7 @@ def GMV_FK_ray(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict
     start_movie_index = int((start_movie-start)/timestep)
     end_movie_index   = int((end_movie-start)/timestep)
 
-    seismo_labels = np.arange(1000, int(end)+1,1000)
+    seismo_labels = np.arange(round(start, -3), int(end)+1, 1000)
     
     if timeframes is not None:
         print("The following time frames in seconds will be plotted:")
@@ -1944,8 +2009,9 @@ def GMV_FK_ray(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict
         else:
             x_sta, y_sta = m(lon_sta_new, lat_sta_new)
             alpmap = m.scatter(x_sta, y_sta, c=GMV["GMV_Z"][:,it], edgecolors='k', marker='o', s=45, cmap='bwr', vmin=vmin, vmax=vmax, zorder=3, ax=ax1)
-        # Plot reference station
-        alpmap_n = m.plot(x_sta[thechosenone["sta_index"]], y_sta[thechosenone["sta_index"]]+1, fillstyle='none', markeredgecolor="lime", markeredgewidth=3, marker="o", markersize=8, zorder=4, ax=ax1)
+        # Plot reference station (Plotting it again to avoid being covered by other dots)
+        alpmap_n1= m.scatter(x_sta[thechosenone["sta_index"]], y_sta[thechosenone["sta_index"]], c=GMV["GMV_Z"][thechosenone["sta_index"],it], edgecolors='k', marker='o', s=45, cmap='bwr', vmin=vmin, vmax=vmax, zorder=4, ax=ax1)
+        alpmap_n = m.plot(x_sta[thechosenone["sta_index"]], y_sta[thechosenone["sta_index"]], fillstyle='none', markeredgecolor="lime", markeredgewidth=3, marker="o", markersize=8, zorder=5, ax=ax1)
         mcolorbar(alpmap, vmin, vmax) # Plot map colorbar
         
         # Plot great circle path
@@ -2188,7 +2254,10 @@ def GMV_FK_ray(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict
         
         if plot_save:
             if plot_3c:
-                plt.savefig(movie_directory+ event_dic['event_name'] +"_3C_FKanalysis_raypath_"+ "%06.1f"%(start+it*timestep)+"s."+save_option, dpi=save_dpi)
+                if save_option == "pdf":
+                    plt.savefig(movie_directory+ event_dic['event_name'] +"_3C_FKanalysis_raypath_"+ "%06.1f"%(start+it*timestep)+"s."+save_option)
+                else:
+                    plt.savefig(movie_directory+ event_dic['event_name'] +"_3C_FKanalysis_raypath_"+ "%06.1f"%(start+it*timestep)+"s."+save_option, dpi=save_dpi)
             else:
                 plt.savefig(movie_directory+ event_dic['event_name'] +"_FKanalysis_raypath_"+ "%06.1f"%(start+it*timestep)+"s."+save_option, dpi=save_dpi)
                 
@@ -2252,7 +2321,7 @@ def GMV_FK4(GMV, event_dic, stream_info, thechosenones, subarray_dicts, FK_dict,
     start_movie_index = int((start_movie-start)/timestep)
     end_movie_index   = int((end_movie-start)/timestep)
 
-    seismo_labels = np.arange(1000, int(end)+1,1000)
+    seismo_labels = np.arange(round(start, -3), int(end)+1, 1000)
 
     if timeframes is not None:
         print("The following time frames in seconds will be plotted:")
@@ -2332,7 +2401,8 @@ def GMV_FK4(GMV, event_dic, stream_info, thechosenones, subarray_dicts, FK_dict,
             alpmap = m.scatter(x_sta, y_sta, c=GMV["GMV_Z"][:,it], edgecolors='k', marker='o', s=45, cmap='bwr', vmin=vmin, vmax=vmax, zorder=3, ax=ax1)
         # Plot reference stations of subarrays
         for thechosenone, clr in zip(thechosenones, array_colors):
-            alpmap_n = m.plot(x_sta[thechosenone["sta_index"]], y_sta[thechosenone["sta_index"]]+1, fillstyle='none', markeredgecolor=clr, markeredgewidth=3, marker="o", markersize=8, zorder=4, ax=ax1)
+            alpmap_n1= m.scatter(x_sta[thechosenone["sta_index"]], y_sta[thechosenone["sta_index"]], c=GMV["GMV_Z"][thechosenone["sta_index"],it], edgecolors='k', marker='o', s=45, cmap='bwr', vmin=vmin, vmax=vmax, zorder=4, ax=ax1)
+            alpmap_n = m.plot(x_sta[thechosenone["sta_index"]], y_sta[thechosenone["sta_index"]], fillstyle='none', markeredgecolor="lime", markeredgewidth=3, marker="o", markersize=8, zorder=5, ax=ax1)
         mcolorbar(alpmap, vmin, vmax) # Plot map colorbar
         
         # Plot great circle path
@@ -2614,7 +2684,7 @@ def GMV_Xsec(GMV, event_dic, stream_info, Xsec_dict, thechosenone_Xsec,
     start_movie_index = int((start_movie-start)/timestep)
     end_movie_index   = int((end_movie-start)/timestep)
 
-    seismo_labels = np.arange(1000, int(end)+1,1000)
+    seismo_labels = np.arange(round(start, -3), int(end)+1, 1000)
 
     if timeframes is not None:
         print("The following time frames in seconds will be plotted:")
@@ -2675,7 +2745,7 @@ def GMV_Xsec(GMV, event_dic, stream_info, Xsec_dict, thechosenone_Xsec,
         else:
             x_sta_Xsec, y_sta_Xsec = m_Xsec(lon_sta_new, lat_sta_new)
             alpmap_Xsec  = m_Xsec.scatter(x_sta_Xsec, y_sta_Xsec, c=GMV["GMV_Z"][:,it], edgecolors='k', marker='o', s=45, cmap='bwr', vmin=vmin, vmax=vmax, zorder=3, ax=ax1_Xsec)
-        alpmap_sta_Xsec  = m_Xsec.plot(x_sta_Xsec[cross_sec], y_sta_Xsec[cross_sec]+1, fillstyle='none', markeredgecolor="lime", markeredgewidth=2.5, marker="o", markersize=8, zorder=4, ax=ax1_Xsec, linestyle="None")
+        alpmap_sta_Xsec  = m_Xsec.plot(x_sta_Xsec[cross_sec], y_sta_Xsec[cross_sec], fillstyle='none', markeredgecolor="lime", markeredgewidth=2.5, marker="o", markersize=8, zorder=4, ax=ax1_Xsec, linestyle="None")
         alpmap_sta_Xsec2 = m_Xsec.plot(x_sta_Xsec[thechosenone_Xsec["sta_index"]], y_sta_Xsec[thechosenone_Xsec["sta_index"]]+1, fillstyle='none', markeredgecolor="magenta", markeredgewidth=3, marker="o", markersize=8, zorder=4, ax=ax1_Xsec, linestyle="None")
     
         mcolorbar(alpmap_Xsec, vmin, vmax) # Plot map colorbar
