@@ -47,7 +47,7 @@ logo_loc = '/Users/angelling/Documents/ETH/figures/AA_logo.png'
 # Choose the starting and ending time in seconds after OT shown in reference seismograms (min: 0, max: 7200)
 start       = 500  # min: 0    # default: 500
 end         = 7000 # max: 7200 # default: 7000 
-decimate_fc = 10   # Downsample data by an integer factor (Default: 2)
+decimate_fc = 2   # Downsample data by an integer factor (Default: 2)
 
 # Movie setting
 # Choose movie interval (default: 1s)
@@ -87,7 +87,8 @@ phases = ['Pdiff','PKP','PKiKP','PKIKP','PP','PPP','SS','SSS','SKS','SKKS','4kmp
 
 # Plotting parameters for movies
 plot_local  = False # Plot local earthquake instead of teleseismic (GMV only; enter event info in the utility code)
-plot_ZeroX  = False # Plot zero crossing for normal mode
+plot_ZeroX  = False # Plot zero crossing for normal mode 
+plot_Vonly  = False # Plot only vertical GMV and seismogram
 read_obs    = False # Read OBS stations (CH*)
 plot_3c     = True  # Plot 3C motion 
 plot_rotate = True  # Plot ZRT instead of ZNE in the simple map seismograms
@@ -292,14 +293,14 @@ elif plot_Xsec:
 
 ## ====================
 # # Normal mode zero crossing plot and vertical seismogram only
-elif plot_ZeroX and not plot_FK_NM:
+elif plot_Vonly or (plot_ZeroX and not plot_FK_NM):
     
     GMV_ZeroX(GMV, event_dic, stream_info, thechosenone, 
               start_movie, end_movie, interval,
               vmin, vmax, arr_img, 
               movie_directory, timeframes=timeframes, timelabel=timelabel,
               plot_save=plot_save, save_option=save_option, save_dpi=save_dpi, 
-              plot_local=False, plot_3c=plot_3c, plot_rotate=plot_rotate)
+              plot_local=False, plot_Vonly=plot_Vonly)
 
 ## ====================
 # # FK analysis plot for normal mode
@@ -328,7 +329,7 @@ else:
              vmin, vmax, arr_img, 
              movie_directory, timeframes=timeframes, timelabel=timelabel,
              plot_save=plot_save, save_option=save_option, save_dpi=save_dpi, 
-             plot_local=False, plot_3c=plot_3c, plot_rotate=plot_rotate)
+             plot_local=plot_local, plot_3c=plot_3c, plot_rotate=plot_rotate)
         
     
 print("--- %.3f seconds ---" % (time.time() - prog_starttime))

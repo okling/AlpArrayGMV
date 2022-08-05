@@ -437,9 +437,9 @@ def read_data_inventory(prodata_directory, resp_directory, event_dic, tstart=0, 
         arraydic["dist_sta"] = dist_deg
         arraydic["bazi_sta"] = bazi
         arraydic["azi_sta"]  = azi
-        arraydic["tr"]       = tr1.copy()
-        arraydic["tr_N"]     = tr2.copy()
-        arraydic["tr_E"]     = tr3.copy()
+        arraydic["tr"]       = tr1
+        arraydic["tr_N"]     = tr2
+        arraydic["tr_E"]     = tr3
         data_dict_list.append(arraydic)
             
     # Show number of OBS
@@ -2759,7 +2759,7 @@ def GMV_ZeroX(GMV, event_dic, stream_info, thechosenone,
               vmin, vmax, arr_img, 
               movie_directory, timeframes=None, timelabel="s",
               plot_save=False, save_option="png", save_dpi=120,
-              plot_local=False, plot_3c=False, plot_rotate=True):
+              plot_local=False, plot_Vonly=False):
     
     """
     Plot zero-crossing in GMV and reference seismogram
@@ -2822,9 +2822,9 @@ def GMV_ZeroX(GMV, event_dic, stream_info, thechosenone,
             print("Movie will start at %04.1f"%(start_movie/d_time)+" min ("+str(start_movie)+"s) after OT and end at %04.1f"%(end_movie/d_time)+" min ("+str(end_movie)+"s) after OT with interval "+str(interval*timestep)+"s.")
         else:
             print("Movie will start at "+str(start_movie)+"s after OT and end at "+str(end_movie)+"s after OT with interval "+str(interval*timestep)+"s.")
-        
-    if plot_3c:
-        print("Ready to plot 3C figures of zero crossings!")
+    
+    if plot_Vonly:
+        print("Ready to plot (vertical component only)!")  
     else:
         print("Ready to plot zero crossings (vertical component only)!")  
         
@@ -2865,20 +2865,17 @@ def GMV_ZeroX(GMV, event_dic, stream_info, thechosenone,
         m.drawmeridians(meridians,labels=[True,False,False,True], linewidth=1.0, fontsize=12)
         
         # Plot the stations
-        # Plot 3C motion
-        if plot_3c:
-            if plot_local:
-                scale = 0.65
-            else:
-                scale = 1
-            x_sta, y_sta = m(lon_sta_new+(GMV["GMV_E"][:,it]*scale), lat_sta_new+(GMV["GMV_N"][:,it]*scale))
-            alpmap = m.scatter(x_sta, y_sta, c=GMV["GMV_ZeroX"][:,it], edgecolors='k', marker='o', s=45, cmap='bwr', vmin=vmin, vmax=vmax, zorder=3, ax=ax1)
         # Plot vertical motion only
+        x_sta, y_sta = m(lon_sta_new, lat_sta_new)
+        if plot_Vonly:
+            alpmap = m.scatter(x_sta, y_sta, c=GMV["GMV_Z"][:,it], edgecolors='k', marker='o', s=45, cmap='bwr', vmin=vmin, vmax=vmax, zorder=3, ax=ax1)
         else:
-            x_sta, y_sta = m(lon_sta_new, lat_sta_new)
             alpmap = m.scatter(x_sta, y_sta, c=GMV["GMV_ZeroX"][:,it], edgecolors='k', marker='o', s=45, cmap='bwr', vmin=vmin, vmax=vmax, zorder=3, ax=ax1)
         # Plot reference station (Plotting it again to avoid being covered by other dots)
-        alpmap_n1= m.scatter(x_sta[thechosenone["sta_index"]], y_sta[thechosenone["sta_index"]], c=GMV["GMV_ZeroX"][thechosenone["sta_index"],it], edgecolors='k', marker='o', s=45, cmap='bwr', vmin=vmin, vmax=vmax, zorder=4, ax=ax1)
+        if plot_Vonly:
+            alpmap_n1= m.scatter(x_sta[thechosenone["sta_index"]], y_sta[thechosenone["sta_index"]], c=GMV["GMV_Z"][thechosenone["sta_index"],it], edgecolors='k', marker='o', s=45, cmap='bwr', vmin=vmin, vmax=vmax, zorder=4, ax=ax1)
+        else:
+            alpmap_n1= m.scatter(x_sta[thechosenone["sta_index"]], y_sta[thechosenone["sta_index"]], c=GMV["GMV_ZeroX"][thechosenone["sta_index"],it], edgecolors='k', marker='o', s=45, cmap='bwr', vmin=vmin, vmax=vmax, zorder=4, ax=ax1)
         alpmap_n = m.plot(x_sta[thechosenone["sta_index"]], y_sta[thechosenone["sta_index"]], fillstyle='none', markeredgecolor="lime", markeredgewidth=3, marker="o", markersize=8, zorder=5, ax=ax1)
         
         if plot_local: # Plot local epicenter
@@ -2933,11 +2930,11 @@ def GMV_ZeroX(GMV, event_dic, stream_info, thechosenone,
                 step += 1
             else:
                 step = start+it*timestep 
-            if plot_3c:
-                plt.savefig(movie_directory+ event_dic['event_name'] +"_ZeroX_3C_"+ "%07.1f"%(step)+"s."+save_option, dpi=save_dpi)
+            
+            if plot_Vonly:
+                plt.savefig(movie_directory+ event_dic['event_name'] + "%07.1f"%(step)+"s."+save_option, dpi=save_dpi)               
             else:
-                plt.savefig(movie_directory+ event_dic['event_name'] +"_ZeroX_"+ "%07.1f"%(step)+"s."+save_option, dpi=save_dpi)
-                
+                plt.savefig(movie_directory+ event_dic['event_name'] +"_ZeroX_"+ "%07.1f"%(step)+"s."+save_option, dpi=save_dpi)               
             plt.clf()
             plt.close()
             
