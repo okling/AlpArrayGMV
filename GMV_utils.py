@@ -554,11 +554,11 @@ def Normalize(data_inv_dic, event_dic, f1, f2, start, end, decimate_fc=2, thresh
     
     print(st_all)
     st   = st_all.select(channel="??Z")
-    print(len(st))
-    st_N = st_all.select(channel="??N")
-    print(len(st_N))
+    st_N = st_all.select(channel="??N")    
     st_E = st_all.select(channel="??E")
-    print(len(st_E))
+    # print(len(st))
+    # print(len(st_N))
+    # print(len(st_E))
     
     timestep    = st[0].stats.delta # Sample distance in seconds (timestep)
     nt          = st[0].stats.npts  # Total number of samples

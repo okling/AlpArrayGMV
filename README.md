@@ -14,7 +14,7 @@ The code and features are updated regularly.
 ### GMV + fk-diagram + raypath (GMV_FK_ray)
   - GMV, 3-componet seismograms (ZRT) of reference station, an fk-diagram of subarray (vertical component only), plus a raypath plot 
 
-### Simple GMV (GMV_FK4)
+### GMV +4 fk-diagrams (GMV_FK4)
   - GMV and 4 fk-diagrams of 4 subarrays (vertical component only)
 
 ### GMV + Cross-section (plot_Xsec)
@@ -25,7 +25,7 @@ The code and features are updated regularly.
 
 ### GMV + fk-diagram for normal mode (GMV_FK_NM)
   - Specifically designed to visualize normal mode
-  - Plot single timestep of GMV, reference vertical seismogram, and FK diagram (vertical component only)
+  - GMV, reference vertical seismogram, and an fk-diagram (vertical component only)
 
 ## Example GMVs
 Watch some example GMVs with fk-diagram and raypath plot here: [zenodo](https://zenodo.org/record/4483742)
