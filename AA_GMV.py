@@ -21,7 +21,7 @@ prog_starttime = time.time() # Execution time of this program
 ## Event name (Folder name)
 # event_name = "Nevada_20200515_M6.5"
 # event_name = "Alaska_20180815_M6.5"
-event_name = "Mexico_20200623_M7.4"
+# event_name = "Mexico_20200623_M7.4"
 # event_name = "NewZealand_20200618_M7.4"
 # event_name = "Alaska_20200722_M7.8"
 # event_name = "Mexico_20180216_M7.2"
@@ -29,7 +29,7 @@ event_name = "Mexico_20200623_M7.4"
 # event_name = "Alaska_20181130_M7.1"
 # event_name = "Indonesia_20180928_M7.5"
 # event_name = "Mexico_20170908_M8.2"
-# event_name = "PNG_20170122_M7.9"
+event_name = "PNG_20170122_M7.9"
 
 # Location of the data directoy
 directory  = "/Users/angelling/Documents/obspyDMT/syngine_data/" 
@@ -57,7 +57,7 @@ timeframes      = [1700,2220,2500] # plot only certain time frame in list or arr
 # Start and end of movie in seconds if continuous (min: 0, max: 7200)
 start_movie     = 1200  # min: 0, test: 1300
 end_movie       = 3000  # max: 7200, test: 3150
-timelabel       = "hr"   # "s"/"min"/"hr" for seismograms
+timelabel       = "s"   # "s"/"min"/"hr" for seismograms
 
 # Choose bandpass freq
 f1 = 1/200. # min freq, default 1/200
@@ -94,7 +94,7 @@ plot_3c     = True  # Plot 3C motion
 plot_rotate = True  # Plot ZRT instead of ZNE in the simple map seismograms
 plot_Xsec   = False # Plot Xsec instead of seismograms (includes rotation)
 plot_FK     = False # Plot FK-analysis
-plot_FK_ray = False # Plot FK-analysis + ray path
+plot_FK_ray = True # Plot FK-analysis + ray path
 plot_FK4    = False # Plot 4 FK-analysis
 plot_FK_NM  = False # Plot FK-analysis for Normal Mode
 plot_save   = False # Save plots in movie directory

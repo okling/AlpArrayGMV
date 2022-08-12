@@ -184,7 +184,7 @@ def filter_streams(st, f1, f2, f=None, ftype="bandpass"):
     else:
         st.filter(ftype, freq=f, corners=4, zerophase=True)
     st_filtered.detrend('linear') # detrend after filtering
-    # st_filtered.decimate(2) # downsample the stream from 20 Hz to 10 Hz
+    # st_filtered.decimate(2) # downsample the stream 
     
     return st_filtered
 
@@ -333,8 +333,12 @@ def read_data_inventory(prodata_directory, resp_directory, event_dic, tstart=0, 
                         tr33.stats["coordinates"]["longitude"] = lon
                         tr33.stats["coordinates"]["elevation"] = elv
                         tr33 = obspy.Stream(traces=[tr33])
-                    
-            if tr22[0].stats.channel != "HHN" or tr33[0].stats.channel != "HHE":
+                                    
+            if tr22[0].stats.channel == "HHN" and tr33[0].stats.channel == "HHE":
+                tr1 = tr11
+                tr2 = tr22
+                tr3 = tr33    
+            elif tr22[0].stats.channel == "HH1" and tr33[0].stats.channel == "HH2":
                 trZ12 = tr11+tr22+tr33
                 try:
                     invZNE = obspy.read_inventory(resp_directory+'STXML.'+fsp[0]+"."+fsp[1]+"."+fsp[2]+"*")
@@ -366,11 +370,9 @@ def read_data_inventory(prodata_directory, resp_directory, event_dic, tstart=0, 
                         tr3.stats["coordinates"]["latitude"]  = lat
                         tr3.stats["coordinates"]["longitude"] = lon
                         tr3.stats["coordinates"]["elevation"] = elv
-                Z12_count += 1
+                Z12_count += 1 
             else:
-                tr1 = tr11
-                tr2 = tr22
-                tr3 = tr33
+                continue
                 
         # Read all OBS channels
         elif file.endswith('CHZ'):
@@ -453,9 +455,9 @@ def read_data_inventory(prodata_directory, resp_directory, event_dic, tstart=0, 
     
     for i in range(len(data_dict_list)):
         # Store data in arrays
-        st1 += data_dict_list[i]["tr"].copy()
-        st2 += data_dict_list[i]["tr_N"].copy()
-        st3 += data_dict_list[i]["tr_E"].copy()
+        st1 += data_dict_list[i]["tr"]
+        st2 += data_dict_list[i]["tr_N"]
+        st3 += data_dict_list[i]["tr_E"]
         lat_sta  = np.append(lat_sta,  data_dict_list[i]["lat_sta"])
         lon_sta  = np.append(lon_sta,  data_dict_list[i]["lon_sta"])
         elv_sta  = np.append(elv_sta,  data_dict_list[i]["elv_sta"])
@@ -535,17 +537,28 @@ def Normalize(data_inv_dic, event_dic, f1, f2, start, end, decimate_fc=2, thresh
     
     print ('Trimming traces from '+str(start)+'s to '+str(end)+'s...')
     # Trim the filtered traces
+    try:
+        st_all_f.interpolate(sampling_rate=st_all_f[0].stats.sampling_rate, starttime=starttime)
+        print('Traces are interpoated.')
+    except Exception as e:
+        print(e)
+        
     st_all = st_all_f.trim(starttime, endtime, pad=True, fill_value=0)
     # Downsample data by an integer factor
     if decimate_fc:
         print("Traces will be downsampled from "+str(st_all[0].stats.sampling_rate)+"Hz to "+str(st_all[0].stats.sampling_rate/decimate_fc)+"Hz")
         st_all.decimate(decimate_fc) 
     else:
+        print("Traces will NOT be downsampled.")
         st_all = st_all
     
-    st   = st_all[:len(st1)]
-    st_N = st_all[len(st1):len(st1)+len(st2)]
-    st_E = st_all[len(st1)+len(st2):len(st1)+len(st2)+len(st3)]
+    print(st_all)
+    st   = st_all.select(channel="??Z")
+    print(len(st))
+    st_N = st_all.select(channel="??N")
+    print(len(st_N))
+    st_E = st_all.select(channel="??E")
+    print(len(st_E))
     
     timestep    = st[0].stats.delta # Sample distance in seconds (timestep)
     nt          = st[0].stats.npts  # Total number of samples
@@ -556,7 +569,16 @@ def Normalize(data_inv_dic, event_dic, f1, f2, start, end, decimate_fc=2, thresh
     print ('Normalizing traces by the max, abs value...')
     for i, (tr1, tr2, tr3, bazi) in enumerate(zip(st, st_N, st_E, bazi_sta)):
         # Rotate HHN/HHE to Radial/Transverse before normalizing
-        tr4,tr5 = rotate_ne_rt(tr2.copy().data, tr3.copy().data, bazi) # rotate N and E component to R and T
+        if tr1.stats.station != tr2.stats.station or tr1.stats.station != tr3.stats.station or tr2.stats.station != tr3.stats.station:
+            print(tr1)
+            print("Not the same station")
+        try:
+            tr4,tr5 = rotate_ne_rt(tr2.copy().data, tr3.copy().data, bazi) # rotate N and E component to R and T
+        except Exception as e:
+            print(e)
+            print(tr2)
+            print(tr3)
+            continue
         if plot_Xsec:
             tr1_new = tr1.data/max(maxabs(tr1.data),maxabs(tr2.data),maxabs(tr3.data))
             tr2_new = tr2.data/max(maxabs(tr2.data),maxabs(tr3.data))
