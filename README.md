@@ -21,10 +21,12 @@ The code and features are updated regularly.
   - GMV and cross-sections (ZNE/ZRT)
 
 ### Simple Zero-crossing GMV (GMV_ZeroX)
+  - Specifically designed to visualize zero-crossing of normal mode
   - Plot zero-crossing in GMV and reference vertical seismogram
 
 ### GMV + fk-diagram for normal mode (GMV_FK_NM)
   - Specifically designed to visualize normal mode
+  - With option to visualize zero-crossing of normal mode
   - GMV, reference vertical seismogram, and an fk-diagram (vertical component only)
 
 ## Example GMVs

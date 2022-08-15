@@ -2954,7 +2954,7 @@ def GMV_ZeroX(GMV, event_dic, stream_info, thechosenone,
                 step = start+it*timestep 
             
             if plot_Vonly:
-                plt.savefig(movie_directory+ event_dic['event_name'] + "%07.1f"%(step)+"s."+save_option, dpi=save_dpi)               
+                plt.savefig(movie_directory+ event_dic['event_name'] + "_%07.1f"%(step)+"s."+save_option, dpi=save_dpi)               
             else:
                 plt.savefig(movie_directory+ event_dic['event_name'] +"_ZeroX_"+ "%07.1f"%(step)+"s."+save_option, dpi=save_dpi)               
             plt.clf()
@@ -2974,8 +2974,8 @@ def GMV_FK_NM(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict,
               start_movie, end_movie, interval,
               vmin, vmax, arr_img, 
               movie_directory, timeframes=None, slow_unit="sdeg", 
-              timelabel="s", plot_ZeroX=False,
-              plot_save=False, save_option="png", save_dpi=120,
+              timelabel="s", plot_ZeroX=False, FK_split=False,
+              plot_save=False, save_option="png", save_dpi=120, 
               plot_3c=True, plot_rotate=True):
     
     """
@@ -3266,12 +3266,13 @@ def GMV_FK_NM(GMV, event_dic, stream_info, thechosenone, subarray_dict, FK_dict,
             ax3.set_ylim(0, sx*100) # s/deg
         [i.set_color('grey') for i in ax3.get_yticklabels()]
         
-        # add a line to split two resolutions
-        rads = np.arange(0, (2*np.pi), 0.01)
-        if slow_unit == "skm":
-            ax3.plot(rads,[sx_m]*len(rads), color="k",zorder=5, lw=0.9)      # s/km
-        else:
-            ax3.plot(rads,[sx_m*100]*len(rads), color="k",zorder=5, lw=0.8)  # s/deg
+        # add a line to split two freq/resolutions
+        if FK_split:
+            rads = np.arange(0, (2*np.pi), 0.01)
+            if slow_unit == "skm":
+                ax3.plot(rads,[sx_m]*len(rads), color="k",zorder=5, lw=0.9)      # s/km
+            else:
+                ax3.plot(rads,[sx_m*100]*len(rads), color="k",zorder=5, lw=0.8)  # s/deg
         
         # Plot backzimuth on FK plot
         # s/km
